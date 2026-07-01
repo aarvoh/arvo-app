@@ -1,6 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
+const Anthropic = require('@anthropic-ai/sdk');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).end(); return; }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -22,4 +22,4 @@ export default async function handler(req, res) {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-}
+};
