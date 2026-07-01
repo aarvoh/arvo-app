@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --ink: #07080A;
+  --surface: #0F1115;
+  --surface-raised: #161A1F;
+  --paper: #EEF0F6;
+  --paper-dim: #7B8091;
+  --paper-faint: #343740;
+
+  --sage: #10B981;
+  --sage-bright: #34D399;
+  --sage-dim: rgba(52, 211, 153, 0.1);
+
+  --brass: #F59E0B;
+  --brass-bright: #FBBF24;
+  --brass-dim: rgba(251, 191, 36, 0.1);
+
+  --blue: #3B82F6;
+  --blue-bright: #60A5FA;
+  --blue-dim: rgba(96, 165, 250, 0.12);
+
+  --red-bright: #F87171;
+  --red-dim: rgba(248, 113, 113, 0.1);
+
+  --line: #1C1F26;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  background: var(--ink);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+.mono { font-family: 'JetBrains Mono', monospace; }
+.display { font-family: 'Space Grotesk', sans-serif; }
+
+input, button { font-family: inherit; }
+button { cursor: pointer; }
+
+::-webkit-scrollbar { display: none; }
