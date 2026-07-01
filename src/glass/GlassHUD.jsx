@@ -58,10 +58,13 @@ function useHeartRate() {
 
 function captureFrame(videoEl) {
   if (!videoEl || !videoEl.videoWidth) return null;
+  const maxW = 768;
+  const scale = Math.min(1, maxW / videoEl.videoWidth);
   const c = document.createElement('canvas');
-  c.width = videoEl.videoWidth; c.height = videoEl.videoHeight;
-  c.getContext('2d').drawImage(videoEl, 0, 0);
-  return c.toDataURL('image/jpeg', 0.75).split(',')[1];
+  c.width  = Math.round(videoEl.videoWidth  * scale);
+  c.height = Math.round(videoEl.videoHeight * scale);
+  c.getContext('2d').drawImage(videoEl, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.65).split(',')[1];
 }
 
 async function askClaude(text, imageBase64 = null) {
