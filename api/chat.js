@@ -1,6 +1,4 @@
-const Anthropic = require('@anthropic-ai/sdk');
-
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).end(); return; }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -11,6 +9,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const { messages } = req.body;
+    const { default: Anthropic } = await import('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey });
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -22,4 +21,4 @@ module.exports = async function handler(req, res) {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-};
+}

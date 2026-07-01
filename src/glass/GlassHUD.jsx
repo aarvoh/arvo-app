@@ -164,9 +164,14 @@ export default function GlassHUD() {
 
   // ── camera ──
   useEffect(() => {
-    navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1920 } } })
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } } })
       .then(stream => { if (videoRef.current) { videoRef.current.srcObject = stream; setCamReady(true); } })
-      .catch(() => {});
+      .catch(() => {
+        // fallback to any camera
+        navigator.mediaDevices?.getUserMedia({ video: true })
+          .then(stream => { if (videoRef.current) { videoRef.current.srcObject = stream; setCamReady(true); } })
+          .catch(() => {});
+      });
     return () => videoRef.current?.srcObject?.getTracks().forEach(t => t.stop());
   }, []);
 
@@ -459,7 +464,7 @@ export default function GlassHUD() {
     async function doScan() {
       if (!scanActiveRef.current || scanInFlight.current) return;
       const frame = captureFrame(videoRef.current);
-      if (!frame) return;
+      if (!frame) { setScanResult('Camera not ready — allow camera access and try again.'); return; }
       scanInFlight.current = true; setScanLoading(true);
       try {
         const ans = await askClaude(SCAN_PROMPTS[mode], frame);
