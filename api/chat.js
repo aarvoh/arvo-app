@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).end(); return; }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = (process.env.ANTHROPIC_API_KEY || '').replace(/^﻿/, '').trim();
   if (!apiKey) {
     res.status(200).json({ content: 'Set ANTHROPIC_API_KEY in Vercel environment variables.' });
     return;
