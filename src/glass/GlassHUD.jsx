@@ -144,16 +144,6 @@ export default function GlassHUD() {
   const queryRecogRef    = useRef(null);
   const voiceActiveRef   = useRef(false);
 
-  // live scan
-  const [scanActive,   setScanActive]   = useState(false);
-  const [scanMode,     setScanMode]     = useState(null); // 'vision'|'ocr'|'translate'
-  const [scanResult,   setScanResult]   = useState('');
-  const [scanLoading,  setScanLoading]  = useState(false);
-  const scanIntervalRef = useRef(null);
-  const scanActiveRef   = useRef(false);
-  const scanModeRef     = useRef(null);
-  const scanInFlight    = useRef(false);
-
   // wake word
   const [wakeListening,  setWakeListening]  = useState(false);
   const [wakeFlash,      setWakeFlash]      = useState(false);
@@ -363,11 +353,6 @@ export default function GlassHUD() {
     if (!SR) { alert('Use Chrome — Web Speech API required.'); return; }
     setDemoPlaying(false);
 
-    // pause scan if running — capture mode to resume after
-    const wasScanning = scanActiveRef.current;
-    const prevScanMode = scanModeRef.current;
-    if (wasScanning) clearInterval(scanIntervalRef.current);
-
     wakeRecogRef.current?.abort();
     wakeActiveRef.current = false;
     voiceActiveRef.current = true;
@@ -429,14 +414,11 @@ export default function GlassHUD() {
 
       voiceActiveRef.current = false;
       setTimeout(startWakeListener, 2000);
-      // resume scan after voice query finishes (with slight delay so answer card shows)
-      if (wasScanning && prevScanMode) setTimeout(() => startScan(prevScanMode), 2500);
     };
 
     recog.onerror = () => {
       setVoiceActive(false); setHudMode('idle'); setVoiceTranscript('');
       voiceActiveRef.current = false; startWakeListener();
-      if (wasScanning && prevScanMode) setTimeout(() => startScan(prevScanMode), 500);
     };
     queryRecogRef.current = recog;
     recog.start();
@@ -447,52 +429,6 @@ export default function GlassHUD() {
     setVoiceActive(false);
     voiceActiveRef.current = false;
   }
-
-  // ── live scan ──
-  const SCAN_PROMPTS = {
-    vision:    'Describe exactly what you see in 1-2 short sentences. Be specific about objects, text, and the scene.',
-    ocr:       'Read every word of text visible in this image exactly as written, line by line. If no text is visible, say "No text found".',
-    translate: 'Read the text visible in this image and translate it to English. Format: original → translation. If multiple languages, handle each. If no text, say "No text to translate".',
-  };
-  const SCAN_ICONS = { vision: '👁', ocr: '📖', translate: '🌐' };
-  const SCAN_LABELS = { vision: 'SEE', ocr: 'READ', translate: 'TRANSLATE' };
-
-  function startScan(mode) {
-    setDemoPlaying(false);
-    stopScan();
-    setScanMode(mode); setScanActive(true); scanActiveRef.current = true; scanModeRef.current = mode;
-    setScanResult(''); setScanLoading(false);
-
-    async function doScan() {
-      if (!scanActiveRef.current || scanInFlight.current) return;
-      const frame = captureFrame(videoRef.current);
-      if (!frame) { setScanResult('Camera not ready — allow camera access and try again.'); return; }
-      scanInFlight.current = true; setScanLoading(true);
-      try {
-        const ans = await askClaude(SCAN_PROMPTS[mode], frame);
-        if (!scanActiveRef.current) return;
-        setScanResult(ans); setScanLoading(false);
-        speakText(ans);
-      } catch (err) {
-        setScanLoading(false);
-        setScanResult('AI error — check internet connection.');
-      }
-      scanInFlight.current = false;
-    }
-
-    doScan();
-    scanIntervalRef.current = setInterval(doScan, 3500);
-  }
-
-  function stopScan() {
-    clearInterval(scanIntervalRef.current);
-    scanActiveRef.current = false; scanInFlight.current = false; scanModeRef.current = null;
-    setScanActive(false); setScanMode(null); setScanResult(''); setScanLoading(false);
-    window.speechSynthesis?.cancel();
-  }
-
-  // cleanup on unmount
-  useEffect(() => () => clearInterval(scanIntervalRef.current), []);
 
   // ── controls chrome ──
   function bumpControls() {
@@ -548,7 +484,7 @@ export default function GlassHUD() {
       <div className={`cam-flash${camFlash ? ' active' : ''}`} />
 
       {/* AR scan overlay */}
-      <div className={`ar-scan${(showScan || scanActive) ? ' visible' : ''}`}>
+      <div className={`ar-scan${showScan ? ' visible' : ''}`}>
         <div className="ar-corner tl" /><div className="ar-corner tr" />
         <div className="ar-corner bl" /><div className="ar-corner br" />
         <div className="ar-sweep" />
@@ -698,26 +634,6 @@ export default function GlassHUD() {
             </div>
           )}
 
-          {/* Live scan result card */}
-          {scanActive && (
-            <div className={`scan-card${scanActive ? ' visible' : ''}`}>
-              <div className="scan-card-header">
-                <span className="scan-mode-badge">
-                  {SCAN_ICONS[scanMode]} {SCAN_LABELS[scanMode]}
-                </span>
-                <span className="scan-live-ring" />
-                {scanLoading && <span className="spinner" style={{ width:10, height:10, borderColor:'rgba(255,255,255,0.15)', borderTopColor:'rgba(255,255,255,0.7)', flexShrink:0 }} />}
-              </div>
-              <div className={`scan-card-result${scanMode === 'ocr' ? ' mono' : ''}`}>
-                {scanResult || (scanLoading ? 'Scanning…' : 'Point camera at something…')}
-              </div>
-              <button className="scan-stop-btn" onClick={stopScan}>
-                <svg viewBox="0 0 24 24" fill="currentColor" style={{ width:9, height:9 }}><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-                Stop
-              </button>
-            </div>
-          )}
-
           {/* Weather card (center popup) */}
           {weather && (
             <div className={`weather-card${showWeather ? ' visible' : ''}`} onClick={() => setShowWeather(false)} style={{ pointerEvents: showWeather ? 'auto' : 'none' }}>
@@ -792,28 +708,6 @@ export default function GlassHUD() {
         <div className="ctrl-divider" />
 
         {/* Scan mode buttons — always visible, no popup */}
-        <div className="ctrl-divider" />
-        <button
-          className={`ctrl-btn${scanActive && scanMode === 'vision' ? ' active' : ''}`}
-          onClick={() => scanActive && scanMode === 'vision' ? stopScan() : startScan('vision')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          {scanActive && scanMode === 'vision' ? 'Stop' : 'See'}
-        </button>
-        <button
-          className={`ctrl-btn${scanActive && scanMode === 'ocr' ? ' active' : ''}`}
-          onClick={() => scanActive && scanMode === 'ocr' ? stopScan() : startScan('ocr')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          {scanActive && scanMode === 'ocr' ? 'Stop' : 'Read'}
-        </button>
-        <button
-          className={`ctrl-btn${scanActive && scanMode === 'translate' ? ' active' : ''}`}
-          onClick={() => scanActive && scanMode === 'translate' ? stopScan() : startScan('translate')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>
-          {scanActive && scanMode === 'translate' ? 'Stop' : 'Translate'}
-        </button>
         <button className="ctrl-btn" onClick={triggerNav} title="N">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 20l-5.5 1.5L5 16 16 5l3 3L8 19"/></svg>
           {showNav ? 'Nav off' : 'Nav'}
