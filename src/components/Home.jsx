@@ -130,11 +130,17 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
 
       <div className="home-top-bar">
         <div className="wordmark">ARVO <span className="ch">A1</span></div>
-        <div className="icon-btn" onClick={onOpenSettings}>
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div className={`glass-top-badge${glassLive ? ' live' : ''}`}>
+            <span className="glass-chip-dot" />
+            {glassLive ? 'Glass live' : 'Standby'}
+          </div>
+          <div className="icon-btn" onClick={onOpenSettings}>
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -146,53 +152,6 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
           <div className="greeting-date">{dateStr}</div>
         </div>
 
-        {/* ── Compact glasses hero ── */}
-        <div className="glass-hero-compact">
-          <svg viewBox="0 50 320 140" className="glass-svg-compact" aria-hidden="true">
-            <defs>
-              <radialGradient id="lensGlowL" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity={glassLive ? '0.18' : '0'} />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-              </radialGradient>
-              <radialGradient id="lensGlowR" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity={glassLive ? '0.18' : '0'} />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-              </radialGradient>
-              <filter id="lensBloom" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-            </defs>
-
-            {/* lens glow fills */}
-            <ellipse cx="105" cy="115" rx="68" ry="52" fill="url(#lensGlowL)"
-              className={glassLive ? 'lens-fill-live' : ''} />
-            <ellipse cx="215" cy="115" rx="68" ry="52" fill="url(#lensGlowR)"
-              className={glassLive ? 'lens-fill-live' : ''} />
-
-            {/* lens outlines */}
-            <ellipse cx="105" cy="115" rx="68" ry="52"
-              className={`lens-outline-c ${glassLive ? 'live' : 'standby'}`} />
-            <ellipse cx="215" cy="115" rx="68" ry="52"
-              className={`lens-outline-c ${glassLive ? 'live' : 'standby'}`} />
-
-            {/* frame arms + bridge */}
-            <path className="frame-line" d="M40 110 C 30 108, 22 112, 18 122" />
-            <path className="frame-line" d="M173 112 C 165 100, 155 100, 147 112" />
-            <path className="frame-line" d="M283 110 C 295 105, 305 108, 312 118" />
-
-            {/* pulse trace — active when glass live */}
-            <path
-              className={`pulse-trace-c ${glassLive ? 'active' : ''}`}
-              d="M18 122 C 40 122, 60 122, 75 122 C 90 122, 95 90, 105 90 C 115 90, 118 140, 128 140 C 138 140, 140 110, 147 112"
-            />
-          </svg>
-
-          <div className={`glass-hero-label ${glassLive ? 'live' : ''}`}>
-            <span className="glass-hero-dot" />
-            {glassLive ? 'ARVO A1 · live' : 'open /glass in another tab'}
-          </div>
-        </div>
 
         {/* ── Weather card ── */}
         {weather ? (
@@ -226,23 +185,6 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
           </div>
         )}
 
-        {/* ── Glass status + service dots ── */}
-        <div className="glass-status-row">
-          <div className={`glass-status-chip${glassLive ? ' live' : ''}`}>
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:14, height:14, flexShrink:0 }}>
-              <ellipse cx="7" cy="13" rx="4" ry="3.4"/><ellipse cx="17" cy="13" rx="4" ry="3.4"/><path d="M11 12c.6-1 1.4-1 2 0"/>
-            </svg>
-            <span className="glass-chip-dot" />
-            <span>{glassLive ? 'Glass live' : 'Glass standby'}</span>
-          </div>
-          <div className="svc-icons-row">
-            <span className={`svc-dot${glassLive ? ' on' : ''}`} title="Glass" />
-            <span className="svc-dot on" title="Maps" />
-            <span className={`svc-dot${spotifyConnected ? ' on' : ''}`} title="Spotify" />
-            <span className="svc-dot" title="WhatsApp · pending" />
-            <span className="svc-dot" title="Instagram · pending" />
-          </div>
-        </div>
 
         {/* ── Recent glass activity ── */}
         {recentItems.length > 0 && (
@@ -272,34 +214,46 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
         <div className="section-heading" style={{ marginTop: recentItems.length ? 20 : 8 }}>
           <span>QUICK ACTIONS</span>
         </div>
-        <div className="quick-grid">
-          <button className="quick-card" onClick={onOpenActivity}>
-            <div className="quick-icon blue">
+        <div className="quick-list">
+          <button className="quick-row" onClick={onOpenActivity}>
+            <div className="qr-icon blue">
               <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </div>
-            <div className="quick-label">What do I see?</div>
-            <div className="quick-sub">Camera + AI</div>
-          </button>
-          <button className="quick-card" onClick={() => onNavigate('maps')}>
-            <div className="quick-icon sage">
-              <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 20l-5.5 1.5L5 16 16 5l3 3L8 19"/></svg>
+            <div className="qr-body">
+              <div className="qr-label">What do I see?</div>
+              <div className="qr-sub">Point camera · ARVO describes</div>
             </div>
-            <div className="quick-label">Navigate</div>
-            <div className="quick-sub">Open maps</div>
+            <svg className="qr-arrow" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </button>
-          <button className="quick-card" onClick={onOpenActivity}>
-            <div className="quick-icon brass">
+          <button className="quick-row" onClick={() => onNavigate('maps')}>
+            <div className="qr-icon sage">
+              <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+            </div>
+            <div className="qr-body">
+              <div className="qr-label">Navigate</div>
+              <div className="qr-sub">Maps · Turn-by-turn on glass</div>
+            </div>
+            <svg className="qr-arrow" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button className="quick-row" onClick={onOpenActivity}>
+            <div className="qr-icon brass">
               <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>
             </div>
-            <div className="quick-label">Play music</div>
-            <div className="quick-sub">Voice command</div>
-          </button>
-          <button className="quick-card" onClick={onOpenActivity}>
-            <div className="quick-icon neutral">
-              <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            <div className="qr-body">
+              <div className="qr-label">Play music</div>
+              <div className="qr-sub">Voice command · Spotify</div>
             </div>
-            <div className="quick-label">Ask anything</div>
-            <div className="quick-sub">Glass activity</div>
+            <svg className="qr-arrow" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button className="quick-row" onClick={onOpenActivity}>
+            <div className="qr-icon neutral">
+              <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div className="qr-body">
+              <div className="qr-label">Ask ARVO</div>
+              <div className="qr-sub">Say "Hey ARVO" anytime</div>
+            </div>
+            <svg className="qr-arrow" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </button>
         </div>
 
