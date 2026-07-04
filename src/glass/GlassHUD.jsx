@@ -691,13 +691,6 @@ export default function GlassHUD() {
 
       {/* Control bar */}
       <div className={`hud-controls${controlsVisible ? '' : ' hidden'}`}>
-        <button className={`ctrl-btn${demoPlaying ? ' primary' : ''}`} onClick={() => setDemoPlaying(v => !v)} title="Space">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {demoPlaying ? <><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></> : <path d="M8 5v14l11-7z"/>}
-          </svg>
-          {demoPlaying ? 'Pause' : 'Demo'}
-        </button>
-        <div className="ctrl-divider" />
         <button className={`ctrl-btn${voiceActive ? ' active' : ''}`} onClick={voiceActive ? stopVoice : startVoiceQuery}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>

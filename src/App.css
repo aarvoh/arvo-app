@@ -361,25 +361,67 @@
 }
 .glass-status-card.standby {
   cursor: pointer;
-  background: rgba(255,255,255,0.025);
-  border-color: rgba(255,255,255,0.06);
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(96,165,250,0.07) 0%, transparent 52%),
+    linear-gradient(150deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.02) 60%, rgba(255,255,255,0.035) 100%);
+  border-color: rgba(255,255,255,0.11);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.4),
+    0 10px 28px rgba(0,0,0,0.32),
+    inset 0 1px 0 rgba(255,255,255,0.09),
+    inset 0 -14px 24px -18px rgba(96,165,250,0.14);
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease,
+    opacity 0.4s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.glass-status-card.standby:hover { border-color: var(--glass-border-hi); background: var(--glass-card-hover); }
+.glass-status-card.standby::before {
+  content: ''; position: absolute; top: -46px; right: -28px;
+  width: 190px; height: 170px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(96,165,250,0.1) 0%, transparent 68%);
+  opacity: 0.75; transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.glass-status-card.standby:hover {
+  border-color: rgba(96,165,250,0.28);
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(96,165,250,0.11) 0%, transparent 55%),
+    linear-gradient(150deg, rgba(255,255,255,0.075) 0%, rgba(255,255,255,0.03) 60%, rgba(255,255,255,0.05) 100%);
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.4),
+    0 16px 36px rgba(0,0,0,0.4),
+    0 0 24px rgba(96,165,250,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.13),
+    inset 0 -14px 24px -18px rgba(96,165,250,0.2);
+  transform: translateY(-2px);
+}
+.glass-status-card.standby:hover::before { opacity: 1; }
+.glass-status-card.standby:active {
+  transform: translateY(0) scale(0.995);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.4),
+    0 6px 18px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.09);
+  transition-duration: 0.1s;
+}
 .gsc-body { flex: 1; min-width: 0; position: relative; }
 .gsc-title-row {
   display: flex; align-items: center; gap: 8px;
   font-family: 'Space Grotesk', sans-serif; font-size: 14.5px; font-weight: 600;
   color: var(--paper); letter-spacing: -0.01em;
 }
-.glass-status-card.standby .gsc-title-row { color: var(--paper-dim); }
+.glass-status-card.standby .gsc-title-row { color: var(--paper); }
 .gsc-dot {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   background: var(--sage-bright); box-shadow: 0 0 0 3px var(--sage-dim), 0 0 8px var(--sage);
   animation: pulse-dot 2.4s ease-in-out infinite;
 }
 .gsc-dot.off {
-  background: transparent; border: 1.5px solid var(--paper-faint);
-  box-shadow: none; animation: none; box-sizing: border-box;
+  background: transparent; border: 2px solid var(--brass-bright);
+  box-shadow: 0 0 0 3px var(--brass-dim), 0 0 10px rgba(251,191,36,0.25);
+  animation: standby-ring 2.8s ease-in-out infinite; box-sizing: border-box;
+}
+@keyframes standby-ring {
+  0%, 100% { box-shadow: 0 0 0 3px var(--brass-dim), 0 0 10px rgba(251,191,36,0.25); opacity: 1; }
+  50% { box-shadow: 0 0 0 5px rgba(251,191,36,0.05), 0 0 4px rgba(251,191,36,0.1); opacity: 0.6; }
 }
 .gsc-live-tag {
   font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600;
@@ -404,8 +446,25 @@
   box-shadow: inset 0 1px 0 rgba(52,211,153,0.12);
 }
 .gsc-glyph svg { width: 26px; height: 26px; stroke: var(--sage-bright); }
-.glass-status-card.standby .gsc-glyph { background: rgba(255,255,255,0.035); border-color: var(--glass-border); box-shadow: none; }
-.glass-status-card.standby .gsc-glyph svg { stroke: var(--paper-faint); }
+.glass-status-card.standby .gsc-glyph {
+  background: linear-gradient(160deg, rgba(96,165,250,0.14) 0%, rgba(96,165,250,0.05) 100%);
+  border-color: rgba(96,165,250,0.24);
+  box-shadow: inset 0 1px 0 rgba(96,165,250,0.18), 0 4px 14px rgba(0,0,0,0.25);
+  transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+.glass-status-card.standby .gsc-glyph svg {
+  stroke: var(--blue-bright);
+  filter: drop-shadow(0 0 6px rgba(96,165,250,0.3));
+  transition: filter 0.35s ease;
+}
+.glass-status-card.standby:hover .gsc-glyph {
+  background: linear-gradient(160deg, rgba(96,165,250,0.2) 0%, rgba(96,165,250,0.08) 100%);
+  border-color: rgba(96,165,250,0.38);
+  box-shadow: inset 0 1px 0 rgba(96,165,250,0.26), 0 4px 18px rgba(0,0,0,0.3), 0 0 18px rgba(96,165,250,0.16);
+}
+.glass-status-card.standby:hover .gsc-glyph svg {
+  filter: drop-shadow(0 0 9px rgba(96,165,250,0.5));
+}
 
 /* ─── glass status row (legacy) ──────────────────────────────── */
 .glass-status-row {
