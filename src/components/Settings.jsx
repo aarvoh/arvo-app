@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useLiveClock from '../hooks/useLiveClock';
 import { initiateLogin, disconnect } from '../lib/spotify';
 
@@ -54,10 +54,18 @@ function SigBars({ level }) {
 export default function Settings({ spotifyConnected, onSpotifyChange }) {
   const time = useLiveClock();
   const todayCount = countTodayActivity();
+  const [battery, setBattery] = useState(null);
+
+  useEffect(() => {
+    if (!navigator.getBattery) return;
+    navigator.getBattery().then(b => {
+      setBattery(Math.round(b.level * 100));
+      b.addEventListener('levelchange', () => setBattery(Math.round(b.level * 100)));
+    });
+  }, []);
 
   const [streamOn,      setStreamOn]      = useState(true);
   const [brightness,    setBrightness]    = useState(70);
-  const [sensitivity,   setSensitivity]   = useState(50);
   const [langIdx,       setLangIdx]       = useState(0);
   const [verbIdx,       setVerbIdx]       = useState(1);
   const [callAlerts,    setCallAlerts]    = useState(true);
@@ -124,7 +132,7 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
 
   return (
     <div className="view active">
-      <div className="status-bar"><span>{time}</span><span className="mono">93%</span></div>
+      <div className="status-bar"><span>{time}</span>{battery !== null && <span className="mono">{battery}%</span>}</div>
 
       <div className="settings-top-bar">
         <div className="top-title">Settings</div>
@@ -198,7 +206,7 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
                 32°C
               </div>
             </div>
-            <BatteryArc pct={93} />
+            <BatteryArc pct={battery ?? 93} />
           </div>
         </div>
 
@@ -423,11 +431,6 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
               <input type="range" min="0" max="100" value={brightness} onChange={e => setBrightness(e.target.value)} />
             </div>
 
-            <div className="slider-row" style={{ borderTop: '1px solid var(--line)', paddingTop: 14 }}>
-              <div className="slider-head"><span className="slider-label">Jaw-clench sensitivity</span><span className="slider-val">{sensitivity}%</span></div>
-              <input type="range" min="20" max="80" value={sensitivity} onChange={e => setSensitivity(e.target.value)} />
-              <div style={{ fontSize: 11.5, color: 'var(--paper-faint)', marginTop: 6 }}>Lower if gestures trigger by accident</div>
-            </div>
 
           </div>
         </div>

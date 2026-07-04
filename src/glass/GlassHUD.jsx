@@ -532,7 +532,7 @@ export default function GlassHUD() {
             <div className="notif-sender">{notifData?.sender}</div>
             <div className="notif-preview">{notifData?.preview}</div>
           </div>
-          <div className="notif-hint">jaw clench to reply</div>
+          <div className="notif-hint">say "reply" to respond</div>
         </div>
 
         {/* Status bar — always visible, minimal */}
