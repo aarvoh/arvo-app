@@ -13,28 +13,6 @@ const WMO_ICON = {
   63:'🌧', 65:'⛈', 71:'🌨', 73:'❄', 80:'🌦', 81:'🌦', 95:'⛈',
 };
 
-// ─── demo sequence ────────────────────────────────────────────────
-const DEMO = [
-  { id: 'idle',         dur: 2000 },
-  { id: 'wake',         dur: 1200 },
-  { id: 'listening',    dur: 2400 },
-  { id: 'processing',   dur: 1800, query: '"what is in front of me?"', scan: true },
-  { id: 'answer',       dur: 5500, query: '"what is in front of me?"',
-    answer: 'I can see a laptop on a desk with code on the screen, and a coffee mug nearby.' },
-  { id: 'idle',         dur: 1000 },
-  { id: 'nav',          dur: 4500, instruction: 'Turn right', street: 'MG Road', distance: '200 m' },
-  { id: 'notification', dur: 3800, app: 'WhatsApp', sender: 'Priya', preview: 'Are you coming tonight?' },
-  { id: 'idle',         dur: 800 },
-  { id: 'music',        dur: 4000, track: 'Midnight Rain', artist: 'Taylor Swift' },
-  { id: 'call',         dur: 5000, caller: 'Rahul', app: 'WhatsApp' },
-  { id: 'idle',         dur: 1000 },
-  { id: 'wake',         dur: 900 },
-  { id: 'listening',    dur: 2000 },
-  { id: 'processing',   dur: 1600, query: '"translate this sign"', scan: true },
-  { id: 'answer',       dur: 4000, query: '"translate this sign"',
-    answer: 'Detected Kannada: "ನಮ್ಮ ಮೆಟ್ರೋ" — Namma Metro. A Bengaluru metro station.' },
-  { id: 'idle',         dur: 1200 },
-];
 
 function useLiveClock() {
   const [t, setT] = useState('');
@@ -126,11 +104,6 @@ export default function GlassHUD() {
   const [callData,     setCallData]     = useState(null);  const [showCall,    setShowCall]    = useState(false);
   const [showWeather,  setShowWeather]  = useState(false);
 
-  // demo
-  const [demoIdx,     setDemoIdx]     = useState(0);
-  const [demoPlaying, setDemoPlaying] = useState(true);
-  const demoTimer = useRef(null);
-
   // controls chrome
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen,    setIsFullscreen]    = useState(false);
@@ -198,7 +171,6 @@ export default function GlassHUD() {
           phonePingTimer.current = setTimeout(() => setPhoneConnected(false), 8000);
           break;
         case 'nav_start':
-          setDemoPlaying(false);
           setNavData({ instruction: msg.instruction, street: msg.street, distance: msg.distance, dest: msg.dest, eta: msg.eta });
           setShowNav(true);
           speakText(`Navigation started. ${msg.instruction} onto ${msg.street} in ${msg.distance}.`);
@@ -216,7 +188,6 @@ export default function GlassHUD() {
           else setShowMusic(false);
           break;
         case 'notification':
-          setDemoPlaying(false);
           setNotifData({ app: msg.app, sender: msg.sender, preview: msg.preview });
           setShowNotif(true);
           speakText(`${msg.app} from ${msg.sender}. ${msg.preview}`);
@@ -244,7 +215,7 @@ export default function GlassHUD() {
         const t = e.results[i][0].transcript.toLowerCase();
         if (t.includes('hey arvo') || t.includes('a arvo') || t.includes('i arvo') || t.includes('hey avo')) {
           r.abort();
-          if (!voiceActiveRef.current && !demoPlaying) {
+          if (!voiceActiveRef.current) {
             setWakeFlash(true);
             setTimeout(() => { setWakeFlash(false); startVoiceQuery(); }, 600);
           }
@@ -272,64 +243,12 @@ export default function GlassHUD() {
     return () => clearTimeout(t);
   }, [startWakeListener]);
 
-  // ── demo runner ──
-  useEffect(() => {
-    if (!demoPlaying) return;
-    clearTimeout(demoTimer.current);
-    const step = DEMO[demoIdx];
-    applyDemoStep(step);
-    demoTimer.current = setTimeout(() => setDemoIdx(i => (i + 1) % DEMO.length), step.dur);
-    return () => clearTimeout(demoTimer.current);
-  }, [demoIdx, demoPlaying]); // eslint-disable-line
-
-  function applyDemoStep(step) {
-    switch (step.id) {
-      case 'idle':
-        setAnswerExiting(true);
-        setShowNotif(false); setShowCall(false); setShowWeather(false);
-        setTimeout(() => { setHudMode('idle'); setQuery(''); setAnswer(''); setShowScan(false); setAnswerExiting(false); }, 380);
-        break;
-      case 'wake':
-        setWakeFlash(true);
-        setTimeout(() => { setWakeFlash(false); setHudMode('idle'); }, step.dur - 200);
-        break;
-      case 'listening':
-        setAnswerExiting(true);
-        setTimeout(() => { setHudMode('listening'); setQuery(''); setAnswer(''); setAnswerExiting(false); }, 300);
-        break;
-      case 'processing':
-        setCamFlash(step.scan); setTimeout(() => setCamFlash(false), 160);
-        setHudMode('processing'); setQuery(step.query || ''); setShowScan(!!step.scan);
-        break;
-      case 'answer':
-        setShowScan(false); setHudMode('answer'); setQuery(step.query || ''); setAnswer(step.answer || ''); setAnswerExiting(false);
-        break;
-      case 'weather_card':
-        setHudMode('idle'); setShowWeather(true);
-        setTimeout(() => setShowWeather(false), step.dur - 500);
-        break;
-      case 'music':
-        setMusicData({ track: step.track, artist: step.artist }); setShowMusic(true);
-        break;
-      case 'nav':
-        setNavData({ instruction: step.instruction, street: step.street, distance: step.distance }); setShowNav(true);
-        break;
-      case 'notification':
-        setNotifData({ app: step.app, sender: step.sender, preview: step.preview }); setShowNotif(true);
-        setTimeout(() => setShowNotif(false), step.dur - 500);
-        break;
-      case 'call':
-        setCallData({ caller: step.caller, app: step.app }); setShowCall(true);
-        break;
-    }
-  }
-
   // ── manual triggers ──
-  function triggerNav()   { setDemoPlaying(false); setNavData({ instruction: 'Turn right', street: 'MG Road', distance: '200 m' }); setShowNav(v => !v); }
-  function triggerMusic() { setDemoPlaying(false); setMusicData({ track: 'Midnight Rain', artist: 'Taylor Swift' }); setShowMusic(v => !v); }
-  function triggerNotif() { setDemoPlaying(false); setNotifData({ app: 'WhatsApp', sender: 'Priya', preview: 'Are you coming tonight?' }); setShowNotif(true); setTimeout(() => setShowNotif(false), 4500); }
-  function triggerWeather() { setDemoPlaying(false); setShowWeather(v => !v); }
-  function triggerCall()  { setDemoPlaying(false); setCallData({ caller: 'Priya', app: 'WhatsApp' }); setShowCall(true); }
+  function triggerNav()     { setNavData({ instruction: 'Turn right', street: 'MG Road', distance: '200 m' }); setShowNav(v => !v); }
+  function triggerMusic()   { setMusicData({ track: 'Midnight Rain', artist: 'Taylor Swift' }); setShowMusic(v => !v); }
+  function triggerNotif()   { setNotifData({ app: 'WhatsApp', sender: 'Priya', preview: 'Are you coming tonight?' }); setShowNotif(true); setTimeout(() => setShowNotif(false), 4500); }
+  function triggerWeather() { setShowWeather(v => !v); }
+  function triggerCall()    { setCallData({ caller: 'Priya', app: 'WhatsApp' }); setShowCall(true); }
 
   function dismissAnswer() {
     window.speechSynthesis?.cancel();
@@ -351,8 +270,6 @@ export default function GlassHUD() {
   function startVoiceQuery() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('Use Chrome — Web Speech API required.'); return; }
-    setDemoPlaying(false);
-
     wakeRecogRef.current?.abort();
     wakeActiveRef.current = false;
     voiceActiveRef.current = true;
@@ -458,7 +375,6 @@ export default function GlassHUD() {
     function onKey(e) {
       if (e.target.tagName === 'INPUT') return;
       bumpControls();
-      if (e.code === 'Space') { e.preventDefault(); setDemoPlaying(v => !v); }
       if (e.key === 'f' || e.key === 'F') toggleFullscreen();
       if (e.key === 'n') triggerNav();
       if (e.key === 'm') triggerMusic();
@@ -613,8 +529,8 @@ export default function GlassHUD() {
           {(isAnswer || answerExiting) && (
             <div
               className={`hud-answer-card${isAnswer && !answerExiting ? ' visible' : ''}${answerExiting ? ' exiting' : ''}`}
-              onClick={demoPlaying ? undefined : dismissAnswer}
-              style={{ cursor: demoPlaying ? 'default' : 'pointer', pointerEvents: 'auto' }}
+              onClick={dismissAnswer}
+              style={{ cursor: 'pointer', pointerEvents: 'auto' }}
             >
               <div className="answer-card-eyebrow">
                 ARVO AI
@@ -629,7 +545,7 @@ export default function GlassHUD() {
               <div className="answer-card-text">{answer}</div>
               <div className="answer-card-footer">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width:11,height:11}}><path d="M20 6L9 17l-5-5"/></svg>
-                {demoPlaying ? 'answered via glass speakers' : 'tap to dismiss'}
+                tap to dismiss
               </div>
             </div>
           )}
@@ -724,7 +640,7 @@ export default function GlassHUD() {
       </div>
 
       <div className={`key-hints${controlsVisible ? '' : ' hidden'}`}>
-        <span>Space demo</span><span>N nav</span><span>M music</span><span>W weather</span><span>C call</span><span>Esc dismiss</span>
+        <span>N nav</span><span>M music</span><span>W weather</span><span>C call</span><span>Esc dismiss</span>
       </div>
     </div>
   );
