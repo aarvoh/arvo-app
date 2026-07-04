@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 function apiMiddlewarePlugin(apiKey) {
   return {
-    name: 'sotto-api',
+    name: 'arvo-api',
     configureServer(server) {
       server.middlewares.use('/api/chat', async (req, res) => {
         if (req.method !== 'POST') { res.statusCode = 405; res.end(); return; }
@@ -23,7 +23,7 @@ function apiMiddlewarePlugin(apiKey) {
             const msg = await client.messages.create({
               model: 'claude-haiku-4-5-20251001',
               max_tokens: 300,
-              system: 'You are sotto, an AI embedded in smart glasses worn by the user. When an image is attached, it is a live frame from the glass camera pointed at the real world — look at the image carefully and answer the user\'s question based on exactly what you see. If no image is attached, answer from context alone. Keep every answer to 1–2 short sentences. Answers appear on a small HUD overlay so be direct and specific.',
+              system: 'You are ARVO, an AI embedded in smart glasses worn by the user. When an image is attached, it is a live frame from the glass camera pointed at the real world — look at the image carefully and answer the user\'s question based on exactly what you see. If no image is attached, answer from context alone. Keep every answer to 1–2 short sentences. Answers appear on a small HUD overlay so be direct and specific.',
               messages,
             });
             res.setHeader('Content-Type', 'application/json');
@@ -52,9 +52,9 @@ export default defineConfig(({ mode }) => {
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'sotto',
-        short_name: 'sotto',
-        description: 'Silent assistant companion app for sotto glasses',
+        name: 'ARVO',
+        short_name: 'ARVO',
+        description: 'Smart glasses OS — phone as brain, glass as display',
         theme_color: '#07080A',
         background_color: '#07080A',
         display: 'standalone',

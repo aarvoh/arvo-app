@@ -42,13 +42,13 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
   const [isPlaying,   setIsPlaying]   = useState(false);
   const glassPingTimer = useRef(null);
 
-  const savedName = localStorage.getItem('sotto_user_name');
+  const savedName = localStorage.getItem('arvo_user_name');
   const greeting  = `${getGreeting()}${savedName ? `, ${savedName}` : ''}`;
   const dateStr   = new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 
   function loadRecent() {
     try {
-      const raw = localStorage.getItem('sotto_activity_v1');
+      const raw = localStorage.getItem('arvo_activity_v1');
       if (!raw) return;
       const entries = JSON.parse(raw);
       const today   = new Date();
@@ -129,7 +129,7 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
       </div>
 
       <div className="home-top-bar">
-        <div className="wordmark">sotto <span className="ch">A1</span></div>
+        <div className="wordmark">ARVO <span className="ch">A1</span></div>
         <div className="icon-btn" onClick={onOpenSettings}>
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"/>
@@ -190,7 +190,7 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
 
           <div className={`glass-hero-label ${glassLive ? 'live' : ''}`}>
             <span className="glass-hero-dot" />
-            {glassLive ? 'sotto A1 · live' : 'open /glass in another tab'}
+            {glassLive ? 'ARVO A1 · live' : 'open /glass in another tab'}
           </div>
         </div>
 

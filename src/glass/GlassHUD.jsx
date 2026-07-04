@@ -242,7 +242,7 @@ export default function GlassHUD() {
     r.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript.toLowerCase();
-        if (t.includes('hey sotto') || t.includes('hey soto') || t.includes('a sotto') || t.includes('i sotto')) {
+        if (t.includes('hey arvo') || t.includes('a arvo') || t.includes('i arvo') || t.includes('hey avo')) {
           r.abort();
           if (!voiceActiveRef.current && !demoPlaying) {
             setWakeFlash(true);
@@ -538,7 +538,7 @@ export default function GlassHUD() {
         {/* Status bar — always visible, minimal */}
         <div className="hud-top">
           <div className="hud-brand">
-            sotto
+            ARVO
             <span className="dot-live" />
           </div>
 
@@ -585,7 +585,7 @@ export default function GlassHUD() {
           {/* Wake word detected flash */}
           <div className={`wake-flash${wakeFlash ? ' visible' : ''}`}>
             <span className="wake-dot" />
-            Hey Sotto
+            Hey ARVO
           </div>
 
           {/* Voice listening ring */}
@@ -617,7 +617,7 @@ export default function GlassHUD() {
               style={{ cursor: demoPlaying ? 'default' : 'pointer', pointerEvents: 'auto' }}
             >
               <div className="answer-card-eyebrow">
-                SOTTO AI
+                ARVO AI
                 {isSpeaking && (
                   <span className="speaking-badge">
                     <span className="speak-dot" /><span className="speak-dot" /><span className="speak-dot" />
@@ -686,7 +686,7 @@ export default function GlassHUD() {
       {/* Wake word always-on indicator */}
       <div className={`wake-indicator${wakeListening && !voiceActive && hudMode === 'idle' ? ' visible' : ''}`}>
         <span className="wake-ring" />
-        hey sotto
+        hey arvo
       </div>
 
       {/* Control bar */}

@@ -3,7 +3,7 @@ import { searchAndPlay, pause, next } from '../lib/spotify';
 import glassChannel from '../lib/glassChannel';
 
 const DEVICE_HEIGHT = 844;
-const STORAGE_KEY = 'sotto_activity_v1';
+const STORAGE_KEY = 'arvo_activity_v1';
 
 function relativeTime(ts) {
   const diff = Math.floor((Date.now() - ts) / 1000);

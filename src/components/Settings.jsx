@@ -7,7 +7,7 @@ const VERBOSITY = ['Brief', 'Balanced', 'Detailed'];
 
 function countTodayActivity() {
   try {
-    const raw = localStorage.getItem('sotto_activity_v1');
+    const raw = localStorage.getItem('arvo_activity_v1');
     if (!raw) return 0;
     const today = new Date();
     return JSON.parse(raw).filter(e => {
@@ -69,7 +69,7 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
   const [calibDone,     setCalibDone]     = useState(false);
   const [apiStatus,     setApiStatus]     = useState('unknown'); // 'unknown'|'ok'|'error'|'testing'
   const [apiTesting,    setApiTesting]    = useState(false);
-  const [userName,      setUserName]      = useState(() => localStorage.getItem('sotto_user_name') || 'Harsha');
+  const [userName,      setUserName]      = useState(() => localStorage.getItem('arvo_user_name') || 'Harsha');
   const [editingName,   setEditingName]   = useState(false);
 
   // test API on mount
@@ -98,7 +98,7 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
   function saveName(name) {
     const trimmed = name.trim() || 'Harsha';
     setUserName(trimmed);
-    localStorage.setItem('sotto_user_name', trimmed);
+    localStorage.setItem('arvo_user_name', trimmed);
     setEditingName(false);
   }
 
@@ -169,7 +169,7 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
               </div>
               <div className="glass-step">
                 <div className="glass-step-num">3</div>
-                <div className="glass-step-text">Say <strong style={{ color:'var(--blue-bright)' }}>"Hey Sotto"</strong> in the Glass tab to activate voice</div>
+                <div className="glass-step-text">Say <strong style={{ color:'var(--blue-bright)' }}>"Hey ARVO"</strong> in the Glass tab to activate voice</div>
               </div>
             </div>
             <button className="open-glass-btn" onClick={() => window.open('/glass', '_blank')}>
@@ -186,7 +186,7 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
           <div className="section-label">DEVICE</div>
           <div className="device-card">
             <div className="device-card-left">
-              <div className="device-name">sotto · A1</div>
+              <div className="device-name">ARVO · A1</div>
               <div className="device-meta">fw 0.1.0-dev · 16 channels</div>
               <div className="device-status-row">
                 <span className="device-connected-dot" />
