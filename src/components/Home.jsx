@@ -332,14 +332,6 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
           </div>
         ) : null}
 
-        {/* ── Pull hint ── */}
-        <div className="pull-hint-static" onClick={onOpenActivity} style={{ cursor:'pointer', marginTop:20 }}>
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-          {todayCount > 0
-            ? <span><strong>{todayCount}</strong> glass actions today · pull to view</span>
-            : 'pull down anytime for glass activity'
-          }
-        </div>
 
       </div>
     </div>
