@@ -148,70 +148,87 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
 
         {/* ── Greeting ── */}
         <div className="greeting-block">
-          <div className="greeting-text">{greeting}</div>
           <div className="greeting-date">{dateStr}</div>
+          <div className="greeting-text">{greeting}</div>
         </div>
 
 
-        {/* ── Weather card ── */}
-        {weather ? (
-          <div className="weather-card">
-            <div className="weather-main-row">
-              <div>
-                <div className="weather-temp-large">{Math.round(weather.temperature_2m)}°</div>
-                <div className="weather-condition-text">{wLabel}{city ? ` · ${city}` : ''}</div>
-                <div className="weather-feels-text">
-                  Feels like {Math.round(weather.apparent_temperature)}° · Wind {Math.round(weather.windspeed_10m)} km/h
-                </div>
-              </div>
-              <div className="weather-icon-large">{wIcon}</div>
-            </div>
-            {hourly.length > 0 && (
-              <div className="hourly-strip">
-                {hourly.map((h, i) => (
-                  <div key={i} className={`hourly-item${i === 0 ? ' now' : ''}`}>
-                    <div className="hourly-time">{i === 0 ? 'Now' : h.hour}</div>
-                    <div className="hourly-icon">{WMO_ICON[h.code] ?? '🌡️'}</div>
-                    <div className="hourly-temp">{h.temp}°</div>
+        {/* ── Weather hero card ── */}
+        <div className="weather-hero-wrap">
+          {weather ? (
+            <div className="weather-card">
+              <div className="weather-main-row">
+                <div>
+                  <div className="weather-temp-large">{Math.round(weather.temperature_2m)}°</div>
+                  <div className="weather-condition-text">{wLabel}{city ? ` · ${city}` : ''}</div>
+                  <div className="weather-feels-text">
+                    Feels like {Math.round(weather.apparent_temperature)}° · Wind {Math.round(weather.windspeed_10m)} km/h
                   </div>
-                ))}
+                </div>
+                <div className="weather-icon-large">{wIcon}</div>
               </div>
-            )}
+              {hourly.length > 0 && (
+                <div className="hourly-strip">
+                  {hourly.map((h, i) => (
+                    <div key={i} className={`hourly-item${i === 0 ? ' now' : ''}`}>
+                      <div className="hourly-time">{i === 0 ? 'Now' : h.hour}</div>
+                      <div className="hourly-icon">{WMO_ICON[h.code] ?? '🌡️'}</div>
+                      <div className="hourly-temp">{h.temp}°</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="weather-card weather-loading">
+              <span className="spinner" style={{ width:14, height:14, borderColor:'rgba(255,255,255,0.08)', borderTopColor:'rgba(255,255,255,0.35)' }} />
+              <span style={{ fontSize:13, color:'var(--paper-faint)' }}>Loading weather…</span>
+            </div>
+          )}
+        </div>
+
+
+        {/* ── Glass status card ── */}
+        {glassLive ? (
+          <div className="glass-status-card live">
+            <div className="gsc-body">
+              <div className="gsc-title-row">
+                <span className="gsc-dot" />
+                ARVO A1
+                <span className="gsc-live-tag">live</span>
+              </div>
+              <div className="gsc-sub">Streaming to display</div>
+              <div className="gsc-services">
+                Maps <span className="sep">·</span> Music <span className="sep">·</span> AI active
+              </div>
+            </div>
+            <div className="gsc-glyph">
+              <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 10c0-1.1.9-2 2-2h16a2 2 0 0 1 2 2v1"/>
+                <path d="M2 10v2.5A2.5 2.5 0 0 0 4.5 15h3A2.5 2.5 0 0 0 10 12.5V11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5a2.5 2.5 0 0 0 2.5 2.5h3a2.5 2.5 0 0 0 2.5-2.5V10"/>
+              </svg>
+            </div>
           </div>
         ) : (
-          <div className="weather-card weather-loading">
-            <span className="spinner" style={{ width:14, height:14, borderColor:'rgba(255,255,255,0.08)', borderTopColor:'rgba(255,255,255,0.35)' }} />
-            <span style={{ fontSize:13, color:'var(--paper-faint)' }}>Loading weather…</span>
-          </div>
-        )}
-
-
-        {/* ── Recent glass activity ── */}
-        {recentItems.length > 0 && (
-          <div className="recent-section">
-            <div className="section-heading">
-              <span>RECENT</span>
-              <button className="section-see-all" onClick={onOpenActivity}>
-                {todayCount > 0 ? `${todayCount} today · ` : ''}see all
-              </button>
-            </div>
-            {recentItems.map((item, i) => (
-              <div key={i} className="recent-item" onClick={onOpenActivity}>
-                <div className={`recent-kind-pill ${KIND_COLOR[item.kind] || 'blue'}`}>
-                  {KIND_LABEL[item.kind] || 'AI'}
-                </div>
-                <div className="recent-item-body">
-                  <div className="recent-item-cmd">{(item.cmd || '').replace(/^"|"$/g, '')}</div>
-                  <div className="recent-item-answer">{item.answer}</div>
-                </div>
-                <div className="recent-item-time">{relTime(item.ts)}</div>
+          <div className="glass-status-card standby" onClick={() => window.open('/glass', '_blank')}>
+            <div className="gsc-body">
+              <div className="gsc-title-row">
+                <span className="gsc-dot off" />
+                Glass not connected
               </div>
-            ))}
+              <div className="gsc-sub">Open <code>sotto-app-two.vercel.app/glass</code> in another tab to pair</div>
+            </div>
+            <div className="gsc-glyph">
+              <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 10c0-1.1.9-2 2-2h16a2 2 0 0 1 2 2v1"/>
+                <path d="M2 10v2.5A2.5 2.5 0 0 0 4.5 15h3A2.5 2.5 0 0 0 10 12.5V11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5a2.5 2.5 0 0 0 2.5 2.5h3a2.5 2.5 0 0 0 2.5-2.5V10"/>
+              </svg>
+            </div>
           </div>
         )}
 
         {/* ── Quick actions ── */}
-        <div className="section-heading" style={{ marginTop: recentItems.length ? 20 : 8 }}>
+        <div className="section-heading">
           <span>QUICK ACTIONS</span>
         </div>
         <div className="quick-list">
@@ -256,6 +273,30 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
             <svg className="qr-arrow" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </button>
         </div>
+
+        {/* ── Recent glass activity ── */}
+        {recentItems.length > 0 && (
+          <div className="recent-section" style={{ marginTop: 24 }}>
+            <div className="section-heading">
+              <span>RECENT</span>
+              <button className="section-see-all" onClick={onOpenActivity}>
+                {todayCount > 0 ? `${todayCount} today · ` : ''}see all
+              </button>
+            </div>
+            {recentItems.map((item, i) => (
+              <div key={i} className={`recent-item accent-${KIND_COLOR[item.kind] || 'blue'}`} onClick={onOpenActivity}>
+                <div className={`recent-kind-pill ${KIND_COLOR[item.kind] || 'blue'}`}>
+                  {KIND_LABEL[item.kind] || 'AI'}
+                </div>
+                <div className="recent-item-body">
+                  <div className="recent-item-cmd">{(item.cmd || '').replace(/^"|"$/g, '')}</div>
+                  <div className="recent-item-answer">{item.answer}</div>
+                </div>
+                <div className="recent-item-time">{relTime(item.ts)}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ── Now playing / Spotify connect ── */}
         {spotifyConnected && nowPlaying ? (
