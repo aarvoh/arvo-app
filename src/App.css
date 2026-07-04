@@ -12,6 +12,21 @@
   display: flex;
   flex-direction: column;
 }
+.device::before {
+  content: '';
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 50% at 10% 15%, rgba(59,130,246,0.07) 0%, transparent 100%),
+    radial-gradient(ellipse 60% 55% at 90% 85%, rgba(52,211,153,0.05) 0%, transparent 100%);
+  animation: device-ambient 24s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes device-ambient {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(3%, 4%) scale(1.08); }
+  66%  { transform: translate(-2%, 2%) scale(0.95); }
+  100% { transform: translate(2%, -3%) scale(1.05); }
+}
 
 .status-bar {
   display: flex;
@@ -1103,6 +1118,30 @@ input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; heigh
 
 /* ─── pull hint clickable ─────────────────────────────────────── */
 .pull-hint-static strong { color: var(--blue-bright); }
+
+/* ─── wordmark live glow ──────────────────────────────────────── */
+.wordmark { transition: text-shadow 0.6s ease; }
+.wordmark.glass-live {
+  text-shadow: 0 0 20px rgba(52,211,153,0.45), 0 0 48px rgba(52,211,153,0.18);
+}
+
+/* ─── recents empty state ─────────────────────────────────────── */
+.recents-empty {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 16px;
+  background: var(--glass-card); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border); border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+.recents-empty-icon {
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+  background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.2);
+  display: flex; align-items: center; justify-content: center;
+}
+.recents-empty-icon svg { width: 18px; height: 18px; stroke: var(--blue-bright); }
+.recents-empty-body { flex: 1; }
+.recents-empty-title { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 600; color: var(--paper); }
+.recents-empty-sub { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--paper-faint); margin-top: 4px; }
 
 /* ─── activity panel improvements ────────────────────────────── */
 .panel-stats-row {

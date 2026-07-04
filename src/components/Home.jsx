@@ -40,6 +40,7 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
   const [todayCount,  setTodayCount]  = useState(0);
   const [nowPlaying,  setNowPlaying]  = useState(null);
   const [isPlaying,   setIsPlaying]   = useState(false);
+  const [battery,     setBattery]     = useState(null);
   const glassPingTimer = useRef(null);
 
   const savedName = localStorage.getItem('arvo_user_name');
@@ -58,6 +59,14 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
     } catch {}
   }
   useEffect(() => { loadRecent(); }, []);
+
+  useEffect(() => {
+    if (!navigator.getBattery) return;
+    navigator.getBattery().then(bat => {
+      setBattery(Math.round(bat.level * 100));
+      bat.onlevelchange = () => setBattery(Math.round(bat.level * 100));
+    });
+  }, []);
 
   useEffect(() => {
     if (!glassChannel) return;
@@ -124,12 +133,12 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
         <span>{time}</span>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           {weather && <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--paper-dim)' }}>{wIcon} {Math.round(weather.temperature_2m)}°</span>}
-          <span className="mono">93%</span>
+          {battery !== null && <span className="mono">{battery}%</span>}
         </div>
       </div>
 
       <div className="home-top-bar">
-        <div className="wordmark">ARVO <span className="ch">A1</span></div>
+        <div className={`wordmark${glassLive ? ' glass-live' : ''}`}>ARVO <span className="ch">A1</span></div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div className={`glass-top-badge${glassLive ? ' live' : ''}`}>
             <span className="glass-chip-dot" />
@@ -275,28 +284,43 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
         </div>
 
         {/* ── Recent glass activity ── */}
-        {recentItems.length > 0 && (
-          <div className="recent-section" style={{ marginTop: 24 }}>
-            <div className="section-heading">
-              <span>RECENT</span>
+        <div className="recent-section" style={{ marginTop: 24 }}>
+          <div className="section-heading">
+            <span>RECENT</span>
+            {recentItems.length > 0 && (
               <button className="section-see-all" onClick={onOpenActivity}>
                 {todayCount > 0 ? `${todayCount} today · ` : ''}see all
               </button>
-            </div>
-            {recentItems.map((item, i) => (
-              <div key={i} className={`recent-item accent-${KIND_COLOR[item.kind] || 'blue'}`} onClick={onOpenActivity}>
-                <div className={`recent-kind-pill ${KIND_COLOR[item.kind] || 'blue'}`}>
-                  {KIND_LABEL[item.kind] || 'AI'}
-                </div>
-                <div className="recent-item-body">
-                  <div className="recent-item-cmd">{(item.cmd || '').replace(/^"|"$/g, '')}</div>
-                  <div className="recent-item-answer">{item.answer}</div>
-                </div>
-                <div className="recent-item-time">{relTime(item.ts)}</div>
-              </div>
-            ))}
+            )}
           </div>
-        )}
+          {recentItems.length > 0 ? recentItems.map((item, i) => (
+            <div key={i} className={`recent-item accent-${KIND_COLOR[item.kind] || 'blue'}`} onClick={onOpenActivity}>
+              <div className={`recent-kind-pill ${KIND_COLOR[item.kind] || 'blue'}`}>
+                {KIND_LABEL[item.kind] || 'AI'}
+              </div>
+              <div className="recent-item-body">
+                <div className="recent-item-cmd">{(item.cmd || '').replace(/^"|"$/g, '')}</div>
+                <div className="recent-item-answer">{item.answer}</div>
+              </div>
+              <div className="recent-item-time">{relTime(item.ts)}</div>
+            </div>
+          )) : (
+            <div className="recents-empty">
+              <div className="recents-empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+              </div>
+              <div className="recents-empty-body">
+                <div className="recents-empty-title">Say "Hey ARVO" to get started</div>
+                <div className="recents-empty-sub">Your glass activity appears here</div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* ── Now playing / Spotify connect ── */}
         {spotifyConnected && nowPlaying ? (
