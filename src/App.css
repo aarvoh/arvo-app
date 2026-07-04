@@ -48,27 +48,22 @@
   align-items: center;
   gap: 4px;
   padding: 6px 0 10px;
+  min-height: 54px;
   cursor: pointer;
   background: none;
   border: none;
+  border-radius: 14px;
   position: relative;
+  transition: background 0.18s ease;
 }
+.tab-btn:active { transform: scale(0.94); }
 .tab-btn svg { width: 21px; height: 21px; stroke: var(--paper-faint); transition: stroke 0.2s ease; }
 .tab-btn span { font-size: 10.5px; color: var(--paper-faint); font-weight: 500; transition: color 0.2s ease; }
-.tab-btn.active svg { stroke: var(--paper); }
-.tab-btn.active span { color: var(--paper); }
-.tab-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 22px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--blue-bright);
-  box-shadow: 0 0 8px var(--blue);
+.tab-btn.active {
+  background: var(--blue-dim);
 }
+.tab-btn.active svg { stroke: var(--blue-bright); }
+.tab-btn.active span { color: var(--blue-bright); }
 
 .home-indicator { width: 134px; height: 5px; background: var(--paper); border-radius: 3px; margin: 6px auto 6px; opacity: 0.5; flex-shrink: 0; }
 
@@ -232,6 +227,7 @@
   background: linear-gradient(135deg, rgba(30,41,59,0.9) 0%, rgba(15,23,42,0.95) 100%);
   border: 1px solid rgba(96,165,250,0.12); border-radius: 20px; padding: 18px 20px 14px;
   margin-bottom: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .weather-loading { display: flex; align-items: center; gap: 10px; min-height: 72px; margin-bottom: 12px; }
 .weather-main-row { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
@@ -314,8 +310,10 @@
   display: flex; align-items: center; gap: 10px;
   padding: 11px 14px; background: var(--surface); border: 1px solid var(--line);
   border-radius: 14px; cursor: pointer; margin-bottom: 7px;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
+.recent-item:hover { background: var(--surface-raised); border-color: var(--paper-faint); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
 .recent-item:hover { background: var(--surface-raised); border-color: var(--paper-faint); }
 .recent-item:active { transform: scale(0.99); }
 
@@ -381,6 +379,7 @@
   background: rgba(15,17,21,0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   border-radius: 22px 22px 0 0; border-top: 1px solid var(--line);
   padding: 14px 20px 18px; flex-shrink: 0;
+  box-shadow: var(--shadow-sheet);
 }
 .sheet-grip { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 16px; }
 .sheet-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; color: var(--paper); margin-bottom: 4px; }
@@ -400,6 +399,7 @@
   background: rgba(15,17,21,0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   border-radius: 22px 22px 0 0; border-top: 1px solid var(--line);
   padding: 18px 20px 18px; flex-shrink: 0;
+  box-shadow: var(--shadow-sheet);
 }
 .nav-origin {
   display: flex; align-items: center; gap: 7px;
@@ -520,13 +520,20 @@
 .settings-content { padding: 14px 20px 12px; overflow-y: auto; flex: 1; min-height: 0; }
 .section { margin-bottom: 20px; }
 .section-label { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--paper-faint); letter-spacing: 0.06em; padding: 0 4px 8px; }
-.group { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.group {
+  background: linear-gradient(180deg, var(--surface-raised) 0%, var(--surface) 100%);
+  border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+  box-shadow: var(--shadow-card), var(--edge-hi);
+}
 .row { display: flex; align-items: center; gap: 13px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .group .row:last-child { border-bottom: none; }
 .row-icon { width: 32px; height: 32px; border-radius: 9px; background: var(--surface-raised); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .row-icon svg { width: 16px; height: 16px; }
+.row-icon.sage { background: var(--sage-dim); border-color: rgba(52,211,153,0.22); }
 .row-icon.sage svg { stroke: var(--sage-bright); }
+.row-icon.brass { background: var(--brass-dim); border-color: rgba(251,191,36,0.22); }
 .row-icon.brass svg { stroke: var(--brass-bright); }
+.row-icon.blue { background: var(--blue-dim); border-color: rgba(96,165,250,0.22); }
 .row-icon.blue svg { stroke: var(--blue-bright); }
 .row-icon.neutral svg { stroke: var(--paper-dim); }
 .row-main { flex: 1; min-width: 0; }
@@ -535,13 +542,13 @@
 .row-value { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--paper-dim); flex-shrink: 0; }
 .chevron { width: 16px; height: 16px; stroke: var(--paper-faint); flex-shrink: 0; }
 
-.switch { width: 40px; height: 23px; border-radius: 12px; position: relative; flex-shrink: 0; cursor: pointer; transition: background 0.2s ease; }
-.switch.on { background: var(--sage); }
+.switch { width: 44px; height: 26px; border-radius: 13px; position: relative; flex-shrink: 0; cursor: pointer; transition: background 0.2s ease, box-shadow 0.2s ease; }
+.switch.on { background: var(--sage); box-shadow: 0 0 10px rgba(16,185,129,0.35); }
 .switch.off { background: var(--line); }
-.switch-knob { width: 17px; height: 17px; border-radius: 50%; background: var(--paper); position: absolute; top: 3px; transition: right 0.2s ease, left 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.switch-knob { width: 20px; height: 20px; border-radius: 50%; background: var(--paper); position: absolute; top: 3px; transition: right 0.2s ease, left 0.2s ease; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
 .switch.on .switch-knob { right: 3px; }
 .switch.off .switch-knob { left: 3px; }
-.switch.locked { background: var(--sage-dim); cursor: default; }
+.switch.locked { background: var(--sage-dim); cursor: default; box-shadow: none; }
 .switch.locked .switch-knob { background: var(--paper-faint); right: 3px; }
 
 .lock-badge { display: flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--sage-bright); flex-shrink: 0; }

@@ -264,11 +264,11 @@ html, body, #root { width: 100%; height: 100%; background: #000; overflow: hidde
 .hud-answer-card {
   max-width: 500px; width: 88%;
   background: var(--g-card); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
-  border: 1px solid var(--g-border); border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.11); border-radius: 20px;
   padding: 20px 24px; margin-top: 22px;
   opacity: 0; transform: translateY(16px) scale(0.96);
   transition: opacity 0.45s cubic-bezier(0.22,1,0.36,1), transform 0.45s cubic-bezier(0.22,1,0.36,1);
-  box-shadow: 0 8px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(96,165,250,0.07);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(96,165,250,0.07), inset 0 1px 0 rgba(255,255,255,0.07);
 }
 .hud-answer-card.visible { opacity: 1; transform: translateY(0) scale(1); }
 .hud-answer-card.exiting { opacity: 0; transform: translateY(-12px) scale(0.97); }
@@ -328,11 +328,11 @@ html, body, #root { width: 100%; height: 100%; background: #000; overflow: hidde
 .nav-card {
   max-width: 280px;
   background: var(--g-card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--g-border); border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
   padding: 13px 16px; display: flex; align-items: center; gap: 13px;
   opacity: 0; transform: translateX(-16px);
   transition: opacity 0.4s ease, transform 0.4s ease;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07);
 }
 .nav-card.visible { opacity: 1; transform: translateX(0); }
 .nav-card.exiting { opacity: 0; transform: translateX(-14px); }

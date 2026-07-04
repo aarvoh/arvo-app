@@ -24,6 +24,12 @@
   --red-dim: rgba(248, 113, 113, 0.1);
 
   --line: #1C1F26;
+  --surface-high: #1D2229;
+
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.5), 0 0 0 1px var(--line);
+  --shadow-sheet: 0 -4px 32px rgba(0,0,0,0.45);
+  --shadow-pop: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px var(--line);
+  --edge-hi: inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
