@@ -211,22 +211,46 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
             </div>
           </div>
         ) : (
-          <div className="glass-status-card standby" onClick={() => window.open('/glass', '_blank')}>
-            <div className="gsc-glyph">
-              <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 10c0-1.1.9-2 2-2h16a2 2 0 0 1 2 2v1"/>
-                <path d="M2 10v2.5A2.5 2.5 0 0 0 4.5 15h3A2.5 2.5 0 0 0 10 12.5V11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5a2.5 2.5 0 0 0 2.5 2.5h3a2.5 2.5 0 0 0 2.5-2.5V10"/>
-              </svg>
-            </div>
-            <div className="gsc-body">
-              <div className="gsc-device-name">ARVO A1</div>
-              <div className="gsc-title-row">
-                <span className="gsc-dot off" />
-                Awaiting display
+          <div className="glass-standby-hero" onClick={() => window.open('/glass', '_blank')}>
+            <div className="gsh-header">
+              <div>
+                <div className="gsh-name">ARVO A1</div>
+                <div className="gsh-model">Smart Glasses · Gen 1</div>
               </div>
-              <div className="gsc-sub">Open <code>/glass</code> in another tab to activate</div>
+              <div className="gsh-badge">
+                <span className="gsh-badge-dot" />
+                Standby
+              </div>
             </div>
-            <svg className="gsc-chevron" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            <div className="gsh-visual">
+              <div className="gsh-scan" />
+              <svg className="gsh-svg" viewBox="0 0 280 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 38 L4 44" stroke="rgba(190,205,255,0.3)" strokeWidth="3" strokeLinecap="round"/>
+                <rect x="20" y="12" width="100" height="52" rx="16" stroke="rgba(170,195,255,0.5)" strokeWidth="2" fill="rgba(60,90,255,0.05)"/>
+                <path d="M120 38 C 120 26, 160 26, 160 38" stroke="rgba(190,205,255,0.35)" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+                <rect x="160" y="12" width="100" height="52" rx="16" stroke="rgba(170,195,255,0.5)" strokeWidth="2" fill="rgba(60,90,255,0.05)"/>
+                <path d="M260 38 L276 44" stroke="rgba(190,205,255,0.3)" strokeWidth="3" strokeLinecap="round"/>
+                <path d="M32 24 Q52 18 68 23" stroke="rgba(255,255,255,0.14)" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M172 24 Q192 18 208 23" stroke="rgba(255,255,255,0.14)" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="70" cy="38" r="5" fill="rgba(80,130,255,0.3)"/>
+                <circle cx="70" cy="38" r="2.5" fill="rgba(130,170,255,0.55)"/>
+                <circle cx="210" cy="38" r="5" fill="rgba(80,130,255,0.3)"/>
+                <circle cx="210" cy="38" r="2.5" fill="rgba(130,170,255,0.55)"/>
+              </svg>
+              <div className="gsh-glow" />
+            </div>
+            <div className="gsh-footer">
+              <div>
+                <div className="gsh-footer-title">Display offline</div>
+                <div className="gsh-footer-sub">Open glass interface to activate lens</div>
+              </div>
+              <div className="gsh-launch-btn">
+                Launch
+                <svg viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
           </div>
         )}
 

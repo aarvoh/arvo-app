@@ -17,39 +17,6 @@ function countTodayActivity() {
   } catch { return 0; }
 }
 
-function BatteryArc({ pct }) {
-  const r = 22, circ = 2 * Math.PI * r;
-  const filled = (pct / 100) * circ;
-  const color = pct > 40 ? '#34D399' : pct > 15 ? '#FBBF24' : '#F87171';
-  return (
-    <svg width="58" height="58" viewBox="0 0 58 58">
-      <circle cx="29" cy="29" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4" />
-      <circle cx="29" cy="29" r={r} fill="none" stroke={color} strokeWidth="4"
-        strokeDasharray={`${filled} ${circ - filled}`}
-        strokeLinecap="round" strokeDashoffset={circ * 0.25}
-        style={{ filter: `drop-shadow(0 0 4px ${color}66)` }} />
-      <text x="29" y="34" textAnchor="middle" fill={color}
-        style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 600 }}>
-        {pct}%
-      </text>
-    </svg>
-  );
-}
-
-function SigBars({ level }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 16 }}>
-      {[1, 2, 3, 4].map(i => (
-        <div key={i} style={{
-          width: 4, borderRadius: 1,
-          height: 4 + i * 3,
-          background: i <= level ? '#34D399' : 'rgba(255,255,255,0.12)',
-          boxShadow: i <= level ? '0 0 4px #34D39966' : 'none',
-        }} />
-      ))}
-    </div>
-  );
-}
 
 export default function Settings({ spotifyConnected, onSpotifyChange }) {
   const time = useLiveClock();
@@ -189,27 +156,6 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
           </div>
         </div>
 
-        {/* ── Device status card ───────────────────────── */}
-        <div className="section">
-          <div className="section-label">DEVICE</div>
-          <div className="device-card">
-            <div className="device-card-left">
-              <div className="device-name">ARVO · A1</div>
-              <div className="device-meta">fw 0.1.0-dev · 16 channels</div>
-              <div className="device-status-row">
-                <span className="device-connected-dot" />
-                <span className="device-connected-text">Connected</span>
-                <SigBars level={4} />
-              </div>
-              <div className="device-temp">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
-                32°C
-              </div>
-            </div>
-            <BatteryArc pct={battery ?? 93} />
-          </div>
-        </div>
-
         {/* ── Connected services ───────────────────────── */}
         <div className="section">
           <div className="section-label">CONNECTED SERVICES</div>
@@ -235,6 +181,17 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
               <div className="row-main">
                 <div className="row-title">WhatsApp</div>
                 <div className="row-sub">Requires WhatsApp Business API + Meta Business Verification</div>
+              </div>
+              <div className="pending-pill-small">soon</div>
+            </div>
+
+            <div className="row svc-pending">
+              <div className="row-icon neutral">
+                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.96-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="none" stroke="currentColor" strokeWidth="2"/></svg>
+              </div>
+              <div className="row-main">
+                <div className="row-title">YouTube</div>
+                <div className="row-sub">Play and control videos by voice on your glass</div>
               </div>
               <div className="pending-pill-small">soon</div>
             </div>
