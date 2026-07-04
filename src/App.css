@@ -359,8 +359,12 @@
   background: radial-gradient(circle, rgba(52,211,153,0.1) 0%, transparent 70%);
   pointer-events: none;
 }
-.glass-status-card.standby { opacity: 0.72; cursor: pointer; }
-.glass-status-card.standby:hover { opacity: 1; border-color: var(--glass-border-hi); background: var(--glass-card-hover); }
+.glass-status-card.standby {
+  cursor: pointer;
+  background: rgba(255,255,255,0.025);
+  border-color: rgba(255,255,255,0.06);
+}
+.glass-status-card.standby:hover { border-color: var(--glass-border-hi); background: var(--glass-card-hover); }
 .gsc-body { flex: 1; min-width: 0; position: relative; }
 .gsc-title-row {
   display: flex; align-items: center; gap: 8px;
