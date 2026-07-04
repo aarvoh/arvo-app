@@ -212,19 +212,21 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
           </div>
         ) : (
           <div className="glass-status-card standby" onClick={() => window.open('/glass', '_blank')}>
-            <div className="gsc-body">
-              <div className="gsc-title-row">
-                <span className="gsc-dot off" />
-                Glass not connected
-              </div>
-              <div className="gsc-sub">Tap to open <code>/glass</code> in a new tab</div>
-            </div>
             <div className="gsc-glyph">
-              <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M2 10c0-1.1.9-2 2-2h16a2 2 0 0 1 2 2v1"/>
                 <path d="M2 10v2.5A2.5 2.5 0 0 0 4.5 15h3A2.5 2.5 0 0 0 10 12.5V11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5a2.5 2.5 0 0 0 2.5 2.5h3a2.5 2.5 0 0 0 2.5-2.5V10"/>
               </svg>
             </div>
+            <div className="gsc-body">
+              <div className="gsc-device-name">ARVO A1</div>
+              <div className="gsc-title-row">
+                <span className="gsc-dot off" />
+                Awaiting display
+              </div>
+              <div className="gsc-sub">Open <code>/glass</code> in another tab to activate</div>
+            </div>
+            <svg className="gsc-chevron" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </div>
         )}
 
