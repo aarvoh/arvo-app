@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './GlassHUD.css';
 import glassChannel from '../lib/glassChannel';
+import useBrainSocket from '../lib/useBrainSocket';
 
 // ─── weather helpers ──────────────────────────────────────────────
 const WMO = {
@@ -78,10 +79,17 @@ function speakText(text) {
   else window.speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
 }
 
+// monotonic sequence ID for outgoing InputEvents to the brain
+let _globalSeq = 0;
+function nextSeq() { return ++_globalSeq; }
+
 // ─── component ────────────────────────────────────────────────────
 export default function GlassHUD() {
   const time = useLiveClock();
   const bpm  = useHeartRate();
+
+  // brain WebSocket
+  const { send: sendToBrain, connState: brainConn, lastCard } = useBrainSocket();
   const videoRef = useRef(null);
   const [camReady, setCamReady] = useState(false);
 
@@ -220,6 +228,41 @@ export default function GlassHUD() {
     return () => { clearInterval(beatId); clearTimeout(phonePingTimer.current); glassChannel.removeEventListener('message', handle); };
   }, []);
 
+  // ── incoming RenderCards from brain ──
+  useEffect(() => {
+    if (!lastCard) return;
+    const card = lastCard;
+
+    if (card.card_type === 'ai_response' || card.card_type === 'action_result' ||
+        card.card_type === 'text' || card.card_type === 'status' || card.card_type === 'error') {
+      const body = card.body || '';
+      setAnswer(body);
+      setQuery(card.title ? `"${card.title}"` : query);
+      setHudMode('answer');
+      setAnswerExiting(false);
+      setShowScan(false);
+
+      if (card.audio) {
+        setIsSpeaking(true);
+        const utter = new SpeechSynthesisUtterance(card.audio);
+        utter.rate = 0.95; utter.pitch = 1; utter.volume = 1;
+        const trySpeak = () => {
+          const voices = window.speechSynthesis.getVoices();
+          const voice = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
+            || voices.find(v => v.lang.startsWith('en')) || voices[0];
+          if (voice) utter.voice = voice;
+          utter.onend = () => {
+            setIsSpeaking(false);
+            setTimeout(dismissAnswer, 1500);
+          };
+          window.speechSynthesis.speak(utter);
+        };
+        if (window.speechSynthesis.getVoices().length > 0) trySpeak();
+        else window.speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
+      }
+    }
+  }, [lastCard]); // eslint-disable-line
+
   // ── wake word listener ──
   const startWakeListener = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -317,38 +360,46 @@ export default function GlassHUD() {
       setShowScan(!!frame);
       setVoiceTranscript('');
 
-      try {
-        const ans = await askClaude(text, frame);
-        setShowScan(false);
-        setAnswer(ans);
-        setHudMode('answer');
-        setAnswerExiting(false);
+      const seq = nextSeq();
+      const sent = sendToBrain({
+        type: 'discrete',
+        source: 'voice',
+        text,
+        sequence_id: seq,
+        timestamp: new Date().toISOString(),
+        is_final: true,
+      });
 
-        // speak the answer through speakers
-        setIsSpeaking(true);
-        const utter = new SpeechSynthesisUtterance(ans);
-        utter.rate = 0.95; utter.pitch = 1; utter.volume = 1;
-        const trySpeak = () => {
-          const voices = window.speechSynthesis.getVoices();
-          const voice = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
-            || voices.find(v => v.lang.startsWith('en')) || voices[0];
-          if (voice) utter.voice = voice;
-          utter.onend = () => {
-            setIsSpeaking(false);
-            setTimeout(dismissAnswer, 1500); // auto-dismiss 1.5s after TTS ends
+      if (!sent) {
+        // brain not connected — fall back to direct Claude call
+        try {
+          const ans = await askClaude(text, frame);
+          setShowScan(false);
+          setAnswer(ans);
+          setHudMode('answer');
+          setAnswerExiting(false);
+          setIsSpeaking(true);
+          const utter = new SpeechSynthesisUtterance(ans);
+          utter.rate = 0.95; utter.pitch = 1; utter.volume = 1;
+          const trySpeak = () => {
+            const voices = window.speechSynthesis.getVoices();
+            const voice = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
+              || voices.find(v => v.lang.startsWith('en')) || voices[0];
+            if (voice) utter.voice = voice;
+            utter.onend = () => { setIsSpeaking(false); setTimeout(dismissAnswer, 1500); };
+            window.speechSynthesis.speak(utter);
           };
-          window.speechSynthesis.speak(utter);
-        };
-        if (window.speechSynthesis.getVoices().length > 0) trySpeak();
-        else window.speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
-
-        outSeqRef.current += 1;
-        glassChannel?.postMessage({ type: 'glass_query', seq_id: outSeqRef.current, id: `g${Date.now()}`, text, answer: ans, hasImage: !!frame });
-      } catch {
-        setShowScan(false);
-        setAnswer('Could not reach AI. Check your connection.');
-        setHudMode('answer');
+          if (window.speechSynthesis.getVoices().length > 0) trySpeak();
+          else window.speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
+          outSeqRef.current += 1;
+          glassChannel?.postMessage({ type: 'glass_query', seq_id: outSeqRef.current, id: `g${Date.now()}`, text, answer: ans, hasImage: !!frame });
+        } catch {
+          setShowScan(false);
+          setAnswer('Could not reach AI. Check your connection.');
+          setHudMode('answer');
+        }
       }
+      // if sent=true, response arrives via lastCard useEffect above
 
       voiceActiveRef.current = false;
       setTimeout(startWakeListener, 2000);
@@ -454,11 +505,17 @@ export default function GlassHUD() {
         </div>
       )}
 
-      {/* ── RECONNECTING BANNER ── */}
+      {/* ── RECONNECTING BANNERS ── */}
       {connState === 'reconnecting' && (
-        <div className="reconnecting-banner">
+        <div className="reconnecting-banner" style={{ top: '55%' }}>
           <span className="reconnecting-spinner" />
           Reconnecting to phone…
+        </div>
+      )}
+      {brainConn === 'reconnecting' && (
+        <div className="reconnecting-banner">
+          <span className="reconnecting-spinner" />
+          Reconnecting to brain…
         </div>
       )}
 
@@ -509,11 +566,11 @@ export default function GlassHUD() {
               </svg>
               {phoneConnected ? 'live' : 'off'}
             </div>
-            <div className="hud-stat ok">
+            <div className={`hud-stat${brainConn === 'connected' ? ' ok' : ' dim'}`} title="Brain connection">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:11, height:11 }}>
                 <path d="M1.42 9a16 16 0 0 1 21.16 0M5 12.55a11 11 0 0 1 14.08 0M10.71 17.4l1.29 1.6 1.29-1.6a4 4 0 0 0-2.58 0z"/>
               </svg>
-              A1
+              {brainConn === 'connected' ? 'brain' : brainConn === 'reconnecting' ? '…' : 'off'}
             </div>
             <button className="hud-fs-btn" onClick={toggleFullscreen}>
               {isFullscreen
