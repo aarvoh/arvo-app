@@ -19,10 +19,11 @@ export default function useBrainSocket() {
   const [connState, setConnState] = useState('waiting');
   const [lastCard,  setLastCard]  = useState(null);
 
-  const wsRef      = useRef(null);
-  const delayRef   = useRef(1000);
-  const mountedRef = useRef(true);
-  const retryTimer = useRef(null);
+  const wsRef         = useRef(null);
+  const delayRef      = useRef(1000);
+  const mountedRef    = useRef(true);
+  const retryTimer    = useRef(null);
+  const everConnected = useRef(false);
 
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
@@ -33,6 +34,7 @@ export default function useBrainSocket() {
 
     ws.onopen = () => {
       if (!mountedRef.current) return;
+      everConnected.current = true;
       delayRef.current = 1000;
       setConnState('connected');
     };
@@ -52,7 +54,7 @@ export default function useBrainSocket() {
 
     ws.onclose = () => {
       if (!mountedRef.current) return;
-      setConnState('reconnecting');
+      if (everConnected.current) setConnState('reconnecting');
       retryTimer.current = setTimeout(() => {
         delayRef.current = nextDelay(delayRef.current);
         connect();
