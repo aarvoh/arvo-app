@@ -123,9 +123,15 @@ export default function GlassHUD() {
   const wakeRecogRef     = useRef(null);
   const wakeActiveRef    = useRef(false);
 
-  // phone connection
+  // phone connection + state machine
   const [phoneConnected, setPhoneConnected] = useState(false);
+  const [connState, setConnState]   = useState('waiting'); // 'waiting'|'connected'|'reconnecting'
   const phonePingTimer = useRef(null);
+  const wasConnectedRef = useRef(false);
+
+  // sequence IDs — monotonic counter for outgoing, highest seen for incoming
+  const outSeqRef = useRef(0);
+  const inSeqRef  = useRef(0);
 
   // ── camera ──
   useEffect(() => {
@@ -159,16 +165,30 @@ export default function GlassHUD() {
   // ── BroadcastChannel ──
   useEffect(() => {
     if (!glassChannel) return;
-    const beatId = setInterval(() => glassChannel.postMessage({ type: 'heartbeat_glass' }), 5000);
-    glassChannel.postMessage({ type: 'heartbeat_glass' });
+    const beatId = setInterval(() => {
+      outSeqRef.current += 1;
+      glassChannel.postMessage({ type: 'heartbeat_glass', seq_id: outSeqRef.current });
+    }, 5000);
+    outSeqRef.current += 1;
+    glassChannel.postMessage({ type: 'heartbeat_glass', seq_id: outSeqRef.current });
 
     function handle(e) {
       const msg = e.data;
+
+      // drop stale cards (seq_id present but already superseded)
+      if (msg.seq_id !== undefined && msg.seq_id <= inSeqRef.current) return;
+      if (msg.seq_id !== undefined) inSeqRef.current = msg.seq_id;
+
       switch (msg.type) {
         case 'heartbeat_phone':
           setPhoneConnected(true);
+          setConnState('connected');
+          wasConnectedRef.current = true;
           clearTimeout(phonePingTimer.current);
-          phonePingTimer.current = setTimeout(() => setPhoneConnected(false), 8000);
+          phonePingTimer.current = setTimeout(() => {
+            setPhoneConnected(false);
+            setConnState('reconnecting');
+          }, 8000);
           break;
         case 'nav_start':
           setNavData({ instruction: msg.instruction, street: msg.street, distance: msg.distance, dest: msg.dest, eta: msg.eta });
@@ -322,7 +342,8 @@ export default function GlassHUD() {
         if (window.speechSynthesis.getVoices().length > 0) trySpeak();
         else window.speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
 
-        glassChannel?.postMessage({ type: 'glass_query', id: `g${Date.now()}`, text, answer: ans, hasImage: !!frame });
+        outSeqRef.current += 1;
+        glassChannel?.postMessage({ type: 'glass_query', seq_id: outSeqRef.current, id: `g${Date.now()}`, text, answer: ans, hasImage: !!frame });
       } catch {
         setShowScan(false);
         setAnswer('Could not reach AI. Check your connection.');
@@ -430,6 +451,14 @@ export default function GlassHUD() {
             </button>
           </div>
           <div className="call-hint">say "accept" or "decline"</div>
+        </div>
+      )}
+
+      {/* ── RECONNECTING BANNER ── */}
+      {connState === 'reconnecting' && (
+        <div className="reconnecting-banner">
+          <span className="reconnecting-spinner" />
+          Reconnecting to phone…
         </div>
       )}
 

@@ -198,11 +198,22 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
 
             <div className="row svc-pending">
               <div className="row-icon neutral">
+                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 3L9.218 10.083M11.698 20.334L22 3.001H2l9.698 17.333zM9.218 10.083L11.698 20.334"/></svg>
+              </div>
+              <div className="row-main">
+                <div className="row-title">Telegram</div>
+                <div className="row-sub">Receive messages and reply by voice from your glass</div>
+              </div>
+              <div className="pending-pill-small">soon</div>
+            </div>
+
+            <div className="row svc-pending">
+              <div className="row-icon neutral">
                 <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>
               </div>
               <div className="row-main">
                 <div className="row-title">Instagram</div>
-                <div className="row-sub">Requires Meta Business Account + App Review</div>
+                <div className="row-sub">Post stories directly from your glass lens to Instagram</div>
               </div>
               <div className="pending-pill-small">soon</div>
             </div>
