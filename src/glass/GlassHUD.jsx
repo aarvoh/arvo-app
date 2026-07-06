@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './GlassHUD.css';
 import glassChannel from '../lib/glassChannel';
 import useBrainSocket from '../lib/useBrainSocket';
+import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext } from '../lib/spotify';
 
 // ─── weather helpers ──────────────────────────────────────────────
 const WMO = {
@@ -232,6 +233,22 @@ export default function GlassHUD() {
   useEffect(() => {
     if (!lastCard) return;
     const card = lastCard;
+
+    if (card.card_type === 'spotify_command') {
+      if (card.body === 'play')  spotifyPlay();
+      if (card.body === 'pause') spotifyPause();
+      if (card.body === 'next')  spotifyNext();
+      setAnswer(card.title || 'Done');
+      setHudMode('answer');
+      setAnswerExiting(false);
+      setShowScan(false);
+      if (card.audio) {
+        const utter = new SpeechSynthesisUtterance(card.audio);
+        utter.rate = 0.95;
+        window.speechSynthesis.speak(utter);
+      }
+      return;
+    }
 
     if (card.card_type === 'ai_response' || card.card_type === 'action_result' ||
         card.card_type === 'text' || card.card_type === 'status' || card.card_type === 'error') {
