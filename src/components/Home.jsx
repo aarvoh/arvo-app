@@ -82,6 +82,14 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
     return () => { glassChannel.removeEventListener('message', handle); clearTimeout(glassPingTimer.current); };
   }, []);
 
+  // Keep glass status bar showing phone as live while Home screen is open
+  useEffect(() => {
+    if (!glassChannel) return;
+    glassChannel.postMessage({ type: 'heartbeat_phone' });
+    const id = setInterval(() => glassChannel.postMessage({ type: 'heartbeat_phone' }), 4000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(async pos => {
       const { latitude: lat, longitude: lon } = pos.coords;
