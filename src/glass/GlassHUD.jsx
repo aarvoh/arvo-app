@@ -637,7 +637,7 @@ export default function GlassHUD() {
               style={{ cursor: 'pointer', pointerEvents: 'auto' }}
             >
               <div className="answer-card-eyebrow">
-                ARVO AI
+                ARVO · <span style={{opacity:0.7, fontSize:'0.85em'}}>{lastCard?.title || 'AI'}</span>
                 {isSpeaking && (
                   <span className="speaking-badge">
                     <span className="speak-dot" /><span className="speak-dot" /><span className="speak-dot" />
@@ -716,7 +716,7 @@ export default function GlassHUD() {
             <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
             <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3"/>
           </svg>
-          {voiceActive ? 'Stop' : 'Ask Claude'}
+          {voiceActive ? 'Stop' : 'Ask ARVO'}
         </button>
         <div className="ctrl-divider" />
 
