@@ -377,6 +377,17 @@ export default function GlassHUD() {
       setQuery(`"${text}"`);
       setVoiceTranscript('');
 
+      // answer time questions instantly from browser clock
+      if (/what.*time|current time|time is it|what's the time/i.test(text)) {
+        const t = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const ans = `It's ${t}`;
+        setAnswer(ans); setHudMode('answer'); setAnswerExiting(false); setShowScan(false);
+        speakText(ans);
+        voiceActiveRef.current = false;
+        setTimeout(startWakeListener, 2000);
+        return;
+      }
+
       // visual questions use Claude Vision directly (brain has no camera access)
       const isVisual = frame && /see|look|show|what.*(this|that|here|there|front|around)|describe|read this|scan/i.test(text);
 
