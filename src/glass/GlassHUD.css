@@ -594,3 +594,37 @@ html, body, #root { width: 100%; height: 100%; background: #000; overflow: hidde
     padding-top: max(12px, env(safe-area-inset-top));
   }
 }
+
+/* ── iOS performance: remove backdrop-filter (very expensive on WebKit) ── */
+body.ios-glass *,
+body.ios-glass *::before,
+body.ios-glass *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* Replace blur panels with solid dark backgrounds */
+body.ios-glass .hud-card,
+body.ios-glass .answer-card,
+body.ios-glass .notif-card,
+body.ios-glass .music-card,
+body.ios-glass .weather-card,
+body.ios-glass .nav-card,
+body.ios-glass .call-overlay,
+body.ios-glass .hud-controls,
+body.ios-glass .recon-overlay {
+  background: rgba(8, 10, 16, 0.96) !important;
+}
+/* Stop expensive background animations */
+body.ios-glass .hud-bg-layer,
+body.ios-glass .hud-bg-orb {
+  animation: none !important;
+}
+/* Stop wake ring pulse (not used on iOS anyway) */
+body.ios-glass .wake-ring {
+  animation: none !important;
+}
+/* Make tap-to-speak button larger and more obvious on iOS */
+body.ios-glass .ctrl-btn {
+  padding: 14px 28px;
+  font-size: 16px;
+}

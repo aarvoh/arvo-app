@@ -60,6 +60,9 @@ async function askClaude(text, imageBase64 = null) {
   return d.content || d.error;
 }
 
+// iOS detection — all iOS browsers use WebKit which blocks background mic access
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && 'ontouchend' in window;
+
 // volume is set per-utterance; module var keeps it in sync across all calls
 let _vol = 1;
 
@@ -372,6 +375,10 @@ export default function GlassHUD() {
   }, []); // eslint-disable-line
 
   useEffect(() => {
+    if (isIOS) {
+      document.body.classList.add('ios-glass');
+      return; // iOS WebKit blocks background mic — wake word not supported
+    }
     const t = setTimeout(startWakeListener, 1200);
     return () => clearTimeout(t);
   }, [startWakeListener]);
