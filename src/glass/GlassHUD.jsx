@@ -334,6 +334,7 @@ export default function GlassHUD() {
       }
       const t = texts.join(' ');
       setWakeTranscript(t);
+      console.log('[ARVO wake]', t, '| voiceActive:', voiceActiveRef.current, '| handedOff:', handedOff);
 
       // "ARVO" mis-transcriptions: harvey, harvo, argo, arrow, arba, arva, avo
       const triggered =
@@ -342,25 +343,26 @@ export default function GlassHUD() {
         t.includes('arva')   || t.includes('arbo')   || t.includes('avo');
 
       if (triggered && !voiceActiveRef.current && !handedOff) {
+        console.log('[ARVO wake] TRIGGERED — launching voice query');
         handedOff = true;
-        r.abort();
         setWakeTranscript('');
         setWakeFlash(true);
-        setTimeout(() => { setWakeFlash(false); startVoiceQuery(); }, 600);
+        setWakeListening(false);
+        // Don't abort — let session end naturally; call startVoiceQuery immediately
+        startVoiceQuery();
       }
     };
 
     r.onend = () => {
       wakeActiveRef.current = false;
       setWakeTranscript('');
-      // handedOff = true means we're launching voice query — don't restart yet
-      // voice query's onend will call startWakeListener when it finishes
+      console.log('[ARVO wake] onend | handedOff:', handedOff, '| voiceActive:', voiceActiveRef.current);
       if (!handedOff && !voiceActiveRef.current) setTimeout(startWakeListener, 250);
       else if (!handedOff) setWakeListening(false);
     };
     r.onerror = (ev) => {
       wakeActiveRef.current = false; setWakeListening(false); setWakeTranscript('');
-      // 'aborted' means we called r.abort() ourselves — voice query handles the restart
+      console.log('[ARVO wake] onerror:', ev.error);
       if (ev.error !== 'not-allowed' && ev.error !== 'aborted' && !voiceActiveRef.current) {
         setTimeout(startWakeListener, 1000);
       }
