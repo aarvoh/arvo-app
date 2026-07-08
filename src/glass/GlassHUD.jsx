@@ -15,7 +15,6 @@ const WMO_ICON = {
   63:'🌧', 65:'⛈', 71:'🌨', 73:'❄', 80:'🌦', 81:'🌦', 95:'⛈',
 };
 
-
 function useLiveClock() {
   const [t, setT] = useState('');
   useEffect(() => {
@@ -61,12 +60,15 @@ async function askClaude(text, imageBase64 = null) {
   return d.content || d.error;
 }
 
-// TTS — speaks text through device speakers
-function speakText(text) {
-  if (!window.speechSynthesis) return;
+// volume is set per-utterance; module var keeps it in sync across all calls
+let _vol = 1;
+
+function speakText(text, onDone) {
+  if (!window.speechSynthesis) { onDone?.(); return; }
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.95; utter.pitch = 1; utter.volume = 1;
+  utter.rate = 0.95; utter.pitch = 1; utter.volume = _vol;
+  utter.onend = () => onDone?.();
   const trySpeak = () => {
     const voices = window.speechSynthesis.getVoices();
     const voice = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
@@ -80,7 +82,6 @@ function speakText(text) {
   else window.speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
 }
 
-// monotonic sequence ID for outgoing InputEvents to the brain
 let _globalSeq = 0;
 function nextSeq() { return ++_globalSeq; }
 
@@ -89,16 +90,14 @@ export default function GlassHUD() {
   const time = useLiveClock();
   const bpm  = useHeartRate();
 
-  // brain WebSocket
   const { send: sendToBrain, connState: brainConn, lastCard } = useBrainSocket();
   const videoRef = useRef(null);
   const [camReady, setCamReady] = useState(false);
 
-  // weather
   const [weather, setWeather] = useState(null);
   const [city,    setCity]    = useState('');
 
-  // HUD mode: 'idle' | 'wake' | 'listening' | 'processing' | 'answer'
+  // HUD mode
   const [hudMode,        setHudMode]        = useState('idle');
   const [query,          setQuery]          = useState('');
   const [answer,         setAnswer]         = useState('');
@@ -106,12 +105,31 @@ export default function GlassHUD() {
   const [answerExiting,  setAnswerExiting]  = useState(false);
   const [isSpeaking,     setIsSpeaking]     = useState(false);
 
-  // overlay cards (independent of hudMode)
+  // session mode — stay listening after ARVO answers
+  const [inSession,    setInSession]    = useState(false);
+  const inSessionRef   = useRef(false);
+  const sessionTimerRef = useRef(null);
+
+  // volume
+  const [volumeLevel, setVolumeLevel] = useState(1);
+  useEffect(() => { _vol = volumeLevel; }, [volumeLevel]);
+
+  // scrollable answer card
+  const answerScrollRef = useRef(null);
+
+  // track last card/answer for "repeat" command
+  const lastCardRef = useRef(null);
+  const answerRef   = useRef('');
+  useEffect(() => { answerRef.current = answer; }, [answer]);
+
+  // overlay cards
   const [navData,      setNavData]      = useState(null);  const [showNav,     setShowNav]     = useState(false);
   const [musicData,    setMusicData]    = useState(null);  const [showMusic,   setShowMusic]   = useState(false);
   const [notifData,    setNotifData]    = useState(null);  const [showNotif,   setShowNotif]   = useState(false);
   const [callData,     setCallData]     = useState(null);  const [showCall,    setShowCall]    = useState(false);
   const [showWeather,  setShowWeather]  = useState(false);
+  const showCallRef = useRef(false);
+  useEffect(() => { showCallRef.current = showCall; }, [showCall]);
 
   // controls chrome
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -119,7 +137,7 @@ export default function GlassHUD() {
   const [camFlash,        setCamFlash]        = useState(false);
   const controlsTimer = useRef(null);
 
-  // voice query
+  // voice
   const [voiceActive,     setVoiceActive]     = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const transcriptRef    = useRef('');
@@ -132,13 +150,12 @@ export default function GlassHUD() {
   const wakeRecogRef     = useRef(null);
   const wakeActiveRef    = useRef(false);
 
-  // phone connection + state machine
+  // phone connection
   const [phoneConnected, setPhoneConnected] = useState(false);
-  const [connState, setConnState]   = useState('waiting'); // 'waiting'|'connected'|'reconnecting'
-  const phonePingTimer = useRef(null);
-  const wasConnectedRef = useRef(false);
+  const [connState,      setConnState]      = useState('waiting');
+  const phonePingTimer   = useRef(null);
 
-  // sequence IDs — monotonic counter for outgoing, highest seen for incoming
+  // sequence IDs
   const outSeqRef = useRef(0);
   const inSeqRef  = useRef(0);
 
@@ -147,7 +164,6 @@ export default function GlassHUD() {
     navigator.mediaDevices?.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } } })
       .then(stream => { if (videoRef.current) { videoRef.current.srcObject = stream; setCamReady(true); } })
       .catch(() => {
-        // fallback to any camera
         navigator.mediaDevices?.getUserMedia({ video: true })
           .then(stream => { if (videoRef.current) { videoRef.current.srcObject = stream; setCamReady(true); } })
           .catch(() => {});
@@ -183,8 +199,6 @@ export default function GlassHUD() {
 
     function handle(e) {
       const msg = e.data;
-
-      // drop stale cards (seq_id present but already superseded)
       if (msg.seq_id !== undefined && msg.seq_id <= inSeqRef.current) return;
       if (msg.seq_id !== undefined) inSeqRef.current = msg.seq_id;
 
@@ -192,7 +206,6 @@ export default function GlassHUD() {
         case 'heartbeat_phone':
           setPhoneConnected(true);
           setConnState('connected');
-          wasConnectedRef.current = true;
           clearTimeout(phonePingTimer.current);
           phonePingTimer.current = setTimeout(() => {
             setPhoneConnected(false);
@@ -229,32 +242,54 @@ export default function GlassHUD() {
     return () => { clearInterval(beatId); clearTimeout(phonePingTimer.current); glassChannel.removeEventListener('message', handle); };
   }, []);
 
+  // ── session mode ──
+  // After ARVO answers, stay in listening mode for 5s — no "Hey ARVO" needed for follow-up
+  function startSession() {
+    inSessionRef.current = true;
+    setInSession(true);
+    clearTimeout(sessionTimerRef.current);
+    sessionTimerRef.current = setTimeout(() => {
+      inSessionRef.current = false;
+      setInSession(false);
+      startWakeListener();
+    }, 5000);
+    // brief pause (let TTS fully end) then auto-listen
+    setTimeout(() => {
+      if (inSessionRef.current && !voiceActiveRef.current) {
+        startVoiceQuery();
+      }
+    }, 900);
+  }
+
+  function endSession() {
+    clearTimeout(sessionTimerRef.current);
+    inSessionRef.current = false;
+    setInSession(false);
+  }
+
   // ── incoming RenderCards from brain ──
   useEffect(() => {
     if (!lastCard) return;
+    lastCardRef.current = lastCard;
     const card = lastCard;
 
     if (card.card_type === 'spotify_command') {
-      if (card.body === 'play')              spotifyPlay();
-      else if (card.body === 'pause')        spotifyPause();
-      else if (card.body === 'next')         spotifyNext();
-      else if (card.body.startsWith('search:')) searchAndPlay(card.body.slice(7));
+      if (card.body === 'play')                    spotifyPlay();
+      else if (card.body === 'pause')              spotifyPause();
+      else if (card.body === 'next')               spotifyNext();
+      else if (card.body.startsWith('search:'))    searchAndPlay(card.body.slice(7));
       setAnswer(card.title || 'Done');
       setHudMode('answer');
       setAnswerExiting(false);
       setShowScan(false);
-      if (card.audio) {
-        const utter = new SpeechSynthesisUtterance(card.audio);
-        utter.rate = 0.95;
-        window.speechSynthesis.speak(utter);
-      }
+      if (card.audio) speakText(card.audio, startSession);
+      else startSession();
       return;
     }
 
     if (card.card_type === 'ai_response' || card.card_type === 'action_result' ||
         card.card_type === 'text' || card.card_type === 'status' || card.card_type === 'error') {
-      const body = card.body || '';
-      setAnswer(body);
+      setAnswer(card.body || '');
       setQuery(card.title ? `"${card.title}"` : query);
       setHudMode('answer');
       setAnswerExiting(false);
@@ -262,21 +297,12 @@ export default function GlassHUD() {
 
       if (card.audio) {
         setIsSpeaking(true);
-        const utter = new SpeechSynthesisUtterance(card.audio);
-        utter.rate = 0.95; utter.pitch = 1; utter.volume = 1;
-        const trySpeak = () => {
-          const voices = window.speechSynthesis.getVoices();
-          const voice = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
-            || voices.find(v => v.lang.startsWith('en')) || voices[0];
-          if (voice) utter.voice = voice;
-          utter.onend = () => {
-            setIsSpeaking(false);
-            setTimeout(dismissAnswer, 1500);
-          };
-          window.speechSynthesis.speak(utter);
-        };
-        if (window.speechSynthesis.getVoices().length > 0) trySpeak();
-        else window.speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
+        speakText(card.audio, () => {
+          setIsSpeaking(false);
+          startSession();
+        });
+      } else {
+        startSession();
       }
     }
   }, [lastCard]); // eslint-disable-line
@@ -319,7 +345,6 @@ export default function GlassHUD() {
   }, []); // eslint-disable-line
 
   useEffect(() => {
-    // small delay so browser settles before we start
     const t = setTimeout(startWakeListener, 1200);
     return () => clearTimeout(t);
   }, [startWakeListener]);
@@ -338,16 +363,10 @@ export default function GlassHUD() {
     setTimeout(() => { setHudMode('idle'); setAnswerExiting(false); setAnswer(''); setQuery(''); setShowScan(false); }, 400);
   }
 
-  function acceptCall() {
-    setShowCall(false);
-    speakText('Call accepted');
-  }
-  function declineCall() {
-    setShowCall(false);
-    speakText('Call declined');
-  }
+  function acceptCall() { setShowCall(false); speakText('Call accepted'); }
+  function declineCall() { setShowCall(false); speakText('Call declined'); }
 
-  // ── voice query (after wake word or button tap) ──
+  // ── voice query ──
   function startVoiceQuery() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('Use Chrome — Web Speech API required.'); return; }
@@ -369,97 +388,164 @@ export default function GlassHUD() {
 
     recog.onend = async () => {
       setVoiceActive(false);
-      const text = transcriptRef.current.trim();
-      if (!text) { setHudMode('idle'); setVoiceTranscript(''); voiceActiveRef.current = false; startWakeListener(); return; }
+      voiceActiveRef.current = false;
 
-      const frame = captureFrame(videoRef.current);
-      setHudMode('processing');
-      setQuery(`"${text}"`);
+      let text = transcriptRef.current.trim();
       setVoiceTranscript('');
 
-      // answer time questions instantly from browser clock
+      // no speech — if in session try again, else go to wake listener
+      if (!text) {
+        if (inSessionRef.current) {
+          setTimeout(() => {
+            if (inSessionRef.current && !voiceActiveRef.current) startVoiceQuery();
+          }, 400);
+        } else {
+          setHudMode('idle');
+          startWakeListener();
+        }
+        return;
+      }
+
+      // strip accidental "hey arvo" prefix during session
+      text = text.replace(/^(hey\s+)?(arvo)\s*/i, '').trim() || text;
+
+      setHudMode('processing');
+      setQuery(`"${text}"`);
+
+      // ── LOCAL NAVIGATION COMMANDS — instant, no brain call ──
+      const cmd = text.toLowerCase().trim();
+
+      // home / dismiss
+      if (/^(home|go home|dismiss|close|go back|back|cancel|never mind|nevermind)$/.test(cmd)) {
+        endSession();
+        dismissAnswer();
+        setTimeout(startWakeListener, 500);
+        return;
+      }
+
+      // repeat last answer
+      if (/^(repeat|read again|say again|say that again|what did you say)$/.test(cmd)) {
+        const audio = lastCardRef.current?.audio || answerRef.current;
+        if (audio) speakText(audio, startSession);
+        else startSession();
+        setHudMode(answerRef.current ? 'answer' : 'idle');
+        return;
+      }
+
+      // scroll
+      if (/^(scroll down|down|more)$/.test(cmd)) {
+        answerScrollRef.current?.scrollBy({ top: 100, behavior: 'smooth' });
+        setHudMode('idle');
+        startSession();
+        return;
+      }
+      if (/^(scroll up|up)$/.test(cmd)) {
+        answerScrollRef.current?.scrollBy({ top: -100, behavior: 'smooth' });
+        setHudMode('idle');
+        startSession();
+        return;
+      }
+
+      // volume
+      if (/^(volume up|louder|turn up|increase volume)$/.test(cmd)) {
+        const v = Math.min(1, volumeLevel + 0.25);
+        setVolumeLevel(v); _vol = v;
+        speakText(`Volume ${Math.round(v * 100)} percent`, startSession);
+        setHudMode('idle');
+        return;
+      }
+      if (/^(volume down|quieter|turn down|softer|decrease volume)$/.test(cmd)) {
+        const v = Math.max(0.1, volumeLevel - 0.25);
+        setVolumeLevel(v); _vol = v;
+        speakText(`Volume ${Math.round(v * 100)} percent`, startSession);
+        setHudMode('idle');
+        return;
+      }
+
+      // call controls
+      if (/^(accept|answer the call|answer)$/.test(cmd) && showCallRef.current) {
+        acceptCall(); startSession(); return;
+      }
+      if (/^(decline|reject|ignore|end call)$/.test(cmd) && showCallRef.current) {
+        declineCall(); startSession(); return;
+      }
+
+      // weather shortcut
+      if (/^(weather|show weather|what's the weather|temperature)$/.test(cmd)) {
+        setShowWeather(v => !v);
+        setHudMode('idle');
+        startSession();
+        return;
+      }
+
+      // ── TIME — answered from device clock ──
       if (/what.*time|current time|time is it|what's the time/i.test(text)) {
         const t = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
         const ans = `It's ${t}`;
         setAnswer(ans); setHudMode('answer'); setAnswerExiting(false); setShowScan(false);
-        speakText(ans);
-        voiceActiveRef.current = false;
-        setTimeout(startWakeListener, 2000);
+        speakText(ans, startSession);
         return;
       }
 
-      // visual questions use Claude Vision directly (brain has no camera access)
-      const isVisual = frame && /see|look|show|what.*(this|that|here|there|front|around)|describe|read this|scan/i.test(text);
+      // ── VISUAL — Claude Vision with camera frame ──
+      const frame = captureFrame(videoRef.current);
+      const isVisual = frame && /\bsee\b|look|what.*\b(this|that|here|there|front|around)\b|describe|read this|scan/i.test(text);
 
       if (isVisual) {
         setShowScan(true);
         try {
           const ans = await askClaude(text, frame);
           setShowScan(false);
-          setAnswer(ans);
-          setHudMode('answer');
-          setAnswerExiting(false);
-          speakText(ans);
+          setAnswer(ans); setHudMode('answer'); setAnswerExiting(false);
+          speakText(ans, startSession);
         } catch {
           setShowScan(false);
-          setAnswer('Could not reach AI.');
+          setAnswer('Could not see — please try again.');
           setHudMode('answer');
+          startSession();
         }
-        voiceActiveRef.current = false;
-        setTimeout(startWakeListener, 2000);
         return;
       }
 
+      // ── BRAIN — send to AI / action router ──
       setShowScan(false);
       const seq = nextSeq();
       const sent = sendToBrain({
-        type: 'discrete',
-        source: 'voice',
-        text,
-        sequence_id: seq,
-        timestamp: new Date().toISOString(),
-        is_final: true,
+        type: 'discrete', source: 'voice', text,
+        sequence_id: seq, timestamp: new Date().toISOString(), is_final: true,
       });
 
       if (!sent) {
-        // brain not connected — fall back to direct Claude call
+        // brain offline — fall back to direct Claude
         try {
           const ans = await askClaude(text, frame);
-          setShowScan(false);
-          setAnswer(ans);
-          setHudMode('answer');
-          setAnswerExiting(false);
+          setAnswer(ans); setHudMode('answer'); setAnswerExiting(false); setShowScan(false);
           setIsSpeaking(true);
-          const utter = new SpeechSynthesisUtterance(ans);
-          utter.rate = 0.95; utter.pitch = 1; utter.volume = 1;
-          const trySpeak = () => {
-            const voices = window.speechSynthesis.getVoices();
-            const voice = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
-              || voices.find(v => v.lang.startsWith('en')) || voices[0];
-            if (voice) utter.voice = voice;
-            utter.onend = () => { setIsSpeaking(false); setTimeout(dismissAnswer, 1500); };
-            window.speechSynthesis.speak(utter);
-          };
-          if (window.speechSynthesis.getVoices().length > 0) trySpeak();
-          else window.speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
+          speakText(ans, () => { setIsSpeaking(false); startSession(); });
           outSeqRef.current += 1;
           glassChannel?.postMessage({ type: 'glass_query', seq_id: outSeqRef.current, id: `g${Date.now()}`, text, answer: ans, hasImage: !!frame });
         } catch {
           setShowScan(false);
           setAnswer('Could not reach AI. Check your connection.');
           setHudMode('answer');
+          startSession();
         }
       }
-      // if sent=true, response arrives via lastCard useEffect above
-
-      voiceActiveRef.current = false;
-      setTimeout(startWakeListener, 2000);
+      // if sent=true → response comes via lastCard useEffect which calls startSession
     };
 
     recog.onerror = () => {
-      setVoiceActive(false); setHudMode('idle'); setVoiceTranscript('');
-      voiceActiveRef.current = false; startWakeListener();
+      setVoiceActive(false); voiceActiveRef.current = false;
+      if (inSessionRef.current) {
+        setTimeout(() => {
+          if (inSessionRef.current && !voiceActiveRef.current) startVoiceQuery();
+        }, 600);
+      } else {
+        setHudMode('idle');
+        startWakeListener();
+      }
     };
+
     queryRecogRef.current = recog;
     recog.start();
   }
@@ -503,14 +589,14 @@ export default function GlassHUD() {
       if (e.key === 'm') triggerMusic();
       if (e.key === 'w') triggerWeather();
       if (e.key === 'c') triggerCall();
-      if (e.key === 'Escape') { if (document.fullscreenElement) document.exitFullscreen(); else dismissAnswer(); }
+      if (e.key === 'Escape') { if (document.fullscreenElement) document.exitFullscreen(); else { endSession(); dismissAnswer(); } }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, []); // eslint-disable-line
 
   // ── render ──
-  const wIcon = weather ? (WMO_ICON[weather.weathercode] ?? '🌡') : null;
+  const wIcon  = weather ? (WMO_ICON[weather.weathercode] ?? '🌡') : null;
   const wLabel = weather ? (WMO[weather.weathercode] ?? '') : null;
   const isAnswer = hudMode === 'answer' && answer;
 
@@ -529,7 +615,7 @@ export default function GlassHUD() {
         <div className="ar-sweep" />
       </div>
 
-      {/* ── CALL OVERLAY — highest priority, blurs everything ── */}
+      {/* ── CALL OVERLAY ── */}
       {showCall && callData && (
         <div className="call-overlay">
           <div className="call-ring">
@@ -573,7 +659,7 @@ export default function GlassHUD() {
       {/* ── HUD LAYER ── */}
       <div className="hud">
 
-        {/* Notification toast — slides from top, takes priority */}
+        {/* Notification toast */}
         <div className={`hud-notification${showNotif && notifData ? ' visible' : ''}${!showNotif && notifData ? ' exiting' : ''}`}>
           <div className="notif-app-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -588,15 +674,10 @@ export default function GlassHUD() {
           <div className="notif-hint">say "reply" to respond</div>
         </div>
 
-        {/* Status bar — always visible, minimal */}
+        {/* Status bar */}
         <div className="hud-top">
-          <div className="hud-brand">
-            ARVO
-            <span className="dot-live" />
-          </div>
-
+          <div className="hud-brand">ARVO <span className="dot-live" /></div>
           <div className="hud-time">{time}</div>
-
           <div className="hud-vitals">
             {bpm > 0 && (
               <div className="hud-stat heart">
@@ -606,11 +687,7 @@ export default function GlassHUD() {
                 {bpm}
               </div>
             )}
-            {weather && (
-              <div className="hud-stat weather-pill">
-                {wIcon} {Math.round(weather.temperature)}°
-              </div>
-            )}
+            {weather && <div className="hud-stat weather-pill">{wIcon} {Math.round(weather.temperature)}°</div>}
             <div className={`hud-stat${phoneConnected ? ' ok' : ' dim'}`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:11, height:11 }}>
                 <rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="17" r="1" fill="currentColor"/>
@@ -632,13 +709,19 @@ export default function GlassHUD() {
           </div>
         </div>
 
-        {/* ── CENTER ZONE — one thing at a time ── */}
+        {/* ── CENTER ZONE ── */}
         <div className="hud-center">
 
-          {/* Wake word detected flash */}
+          {/* Wake flash */}
           <div className={`wake-flash${wakeFlash ? ' visible' : ''}`}>
             <span className="wake-dot" />
             Hey ARVO
+          </div>
+
+          {/* Session active indicator */}
+          <div className={`session-indicator${inSession && !voiceActive && hudMode !== 'listening' ? ' visible' : ''}`}>
+            <span className="session-dot" />
+            listening…
           </div>
 
           {/* Voice listening ring */}
@@ -648,7 +731,7 @@ export default function GlassHUD() {
                 {[...Array(5)].map((_, i) => <div key={i} className="sv-bar" />)}
               </div>
             </div>
-            <div className="sv-label">{voiceActive ? 'listening…' : 'listening…'}</div>
+            <div className="sv-label">listening…</div>
           </div>
 
           {/* Query text */}
@@ -679,15 +762,23 @@ export default function GlassHUD() {
                 )}
               </div>
               <div className="answer-card-query">{query}</div>
-              <div className="answer-card-text">{answer}</div>
+              <div
+                className="answer-card-text"
+                ref={answerScrollRef}
+                style={{ maxHeight: '35vh', overflowY: 'auto' }}
+              >
+                {answer}
+              </div>
               <div className="answer-card-footer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width:11,height:11}}><path d="M20 6L9 17l-5-5"/></svg>
-                tap to dismiss
+                {inSession
+                  ? <><span className="session-dot" style={{marginRight:4}} /> say your next command</>
+                  : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width:11,height:11}}><path d="M20 6L9 17l-5-5"/></svg> tap or say "home" to dismiss</>
+                }
               </div>
             </div>
           )}
 
-          {/* Weather card (center popup) */}
+          {/* Weather card */}
           {weather && (
             <div className={`weather-card${showWeather ? ' visible' : ''}`} onClick={() => setShowWeather(false)} style={{ pointerEvents: showWeather ? 'auto' : 'none' }}>
               <div className="weather-icon">{wIcon}</div>
@@ -702,8 +793,6 @@ export default function GlassHUD() {
 
         {/* ── BOTTOM STRIP ── */}
         <div className="hud-bottom">
-
-          {/* Nav card — bottom left */}
           <div className={`nav-card${showNav && navData ? ' visible' : ''}${!showNav && navData ? ' exiting' : ''}`}>
             <div className="nav-arrow">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -718,7 +807,6 @@ export default function GlassHUD() {
             </div>
           </div>
 
-          {/* Music pill — bottom right */}
           <div className={`music-card${showMusic && musicData ? ' visible' : ''}${!showMusic && musicData ? ' exiting' : ''}`}>
             <div className="music-eq">
               {[...Array(4)].map((_, i) => <div key={i} className="music-eq-bar" />)}
@@ -731,12 +819,12 @@ export default function GlassHUD() {
         </div>
       </div>
 
-      {/* Live voice transcript bubble */}
+      {/* Live voice transcript */}
       <div className={`voice-transcript${voiceTranscript ? ' visible' : ''}`}>
         {voiceTranscript}
       </div>
 
-      {/* Wake word always-on indicator */}
+      {/* Wake word indicator */}
       <div className={`wake-indicator${wakeListening && !voiceActive && hudMode === 'idle' ? ' visible' : ''}`}>
         <span className="wake-ring" />
         hey arvo
@@ -752,8 +840,6 @@ export default function GlassHUD() {
           {voiceActive ? 'Stop' : 'Ask ARVO'}
         </button>
         <div className="ctrl-divider" />
-
-        {/* Scan mode buttons — always visible, no popup */}
         <button className="ctrl-btn" onClick={triggerNav} title="N">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 20l-5.5 1.5L5 16 16 5l3 3L8 19"/></svg>
           {showNav ? 'Nav off' : 'Nav'}
