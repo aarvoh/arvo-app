@@ -337,14 +337,12 @@ export default function GlassHUD() {
       }
       const t = texts.join(' ');
       setWakeTranscript(t);
-      console.log('[ARVO wake]', t, '| voiceActive:', voiceActiveRef.current, '| handedOff:', handedOff);
 
       // Trigger on "hey" as a word OR any ARVO variant.
       // Chrome sometimes ends the session after just "hey" before the user says "ARVO".
       const triggered = /\bhey\b/.test(t) || /ar[vwou]/.test(t) || /har[vw]/.test(t);
 
       if (triggered && !voiceActiveRef.current && !handedOff) {
-        console.log('[ARVO wake] TRIGGERED — launching voice query');
         handedOff = true;
         r.abort(); // release mic before voice query grabs it
         setWakeTranscript('');
@@ -358,13 +356,11 @@ export default function GlassHUD() {
     r.onend = () => {
       wakeActiveRef.current = false;
       setWakeTranscript('');
-      console.log('[ARVO wake] onend | handedOff:', handedOff, '| voiceActive:', voiceActiveRef.current);
       if (!handedOff && !voiceActiveRef.current) setTimeout(startWakeListener, 250);
       else if (!handedOff) setWakeListening(false);
     };
     r.onerror = (ev) => {
       wakeActiveRef.current = false; setWakeListening(false); setWakeTranscript('');
-      console.log('[ARVO wake] onerror:', ev.error);
       if (ev.error !== 'not-allowed' && ev.error !== 'aborted' && !voiceActiveRef.current) {
         setTimeout(startWakeListener, 1000);
       }
@@ -423,17 +419,15 @@ export default function GlassHUD() {
     const recog = new SR();
     recog.lang = 'en-IN'; recog.interimResults = true; recog.continuous = false;
 
-    recog.onstart = () => { console.log('[ARVO voice] started'); setVoiceActive(true); setHudMode('listening'); setVoiceTranscript(''); };
+    recog.onstart = () => { setVoiceActive(true); setHudMode('listening'); setVoiceTranscript(''); };
 
     recog.onresult = (e) => {
       const t = Array.from(e.results).map(r => r[0].transcript).join('');
-      console.log('[ARVO voice] result:', t);
       setVoiceTranscript(t);
       transcriptRef.current = t;
     };
 
     recog.onend = async () => {
-      console.log('[ARVO voice] ended, text:', transcriptRef.current);
       setVoiceActive(false);
       voiceActiveRef.current = false;
 
@@ -582,7 +576,6 @@ export default function GlassHUD() {
     };
 
     recog.onerror = (ev) => {
-      console.log('[ARVO voice] error:', ev.error, '| retries left:', noSpeechRetries);
       // Mobile Chrome fires no-speech after ~2s — retry up to 4 times (~10s total window)
       if (ev.error === 'no-speech' && noSpeechRetries > 0) {
         setTimeout(() => startVoiceQuery(noSpeechRetries - 1), 150);
