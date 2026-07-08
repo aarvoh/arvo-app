@@ -394,13 +394,24 @@ export default function GlassHUD() {
   function declineCall() { setShowCall(false); speakText('Call declined'); }
 
   // ── voice query ──
-  function startVoiceQuery() {
+  function startVoiceQuery(noSpeechRetries = 4) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('Use Chrome — Web Speech API required.'); return; }
+    const wakeWasActive = wakeActiveRef.current;
     wakeRecogRef.current?.abort();
     wakeActiveRef.current = false;
     voiceActiveRef.current = true;
     transcriptRef.current = '';
+    // On mobile the mic needs ~300ms to release from wake listener before a new session
+    if (wakeWasActive && noSpeechRetries === 4) {
+      setTimeout(() => _launchVoiceRecog(noSpeechRetries), 300);
+      return;
+    }
+    _launchVoiceRecog(noSpeechRetries);
+  }
+
+  function _launchVoiceRecog(noSpeechRetries) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     const recog = new SR();
     recog.lang = 'en-IN'; recog.interimResults = true; recog.continuous = false;
@@ -564,7 +575,12 @@ export default function GlassHUD() {
     };
 
     recog.onerror = (ev) => {
-      console.log('[ARVO voice] error:', ev.error);
+      console.log('[ARVO voice] error:', ev.error, '| retries left:', noSpeechRetries);
+      // Mobile Chrome fires no-speech after ~2s — retry up to 4 times (~10s total window)
+      if (ev.error === 'no-speech' && noSpeechRetries > 0) {
+        setTimeout(() => startVoiceQuery(noSpeechRetries - 1), 150);
+        return;
+      }
       setVoiceActive(false); voiceActiveRef.current = false;
       if (inSessionRef.current) {
         setTimeout(() => {
@@ -578,7 +594,7 @@ export default function GlassHUD() {
 
     queryRecogRef.current = recog;
     recog.start();
-  }
+  } // end _launchVoiceRecog
 
   function stopVoice() {
     queryRecogRef.current?.stop();
