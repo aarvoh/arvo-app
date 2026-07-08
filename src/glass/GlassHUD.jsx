@@ -315,6 +315,8 @@ export default function GlassHUD() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR || wakeActiveRef.current || voiceActiveRef.current) return;
 
+    let handedOff = false;
+
     const r = new SR();
     r.continuous = false;
     r.interimResults = true;
@@ -324,7 +326,6 @@ export default function GlassHUD() {
     r.onstart = () => { wakeActiveRef.current = true; setWakeListening(true); };
 
     r.onresult = (e) => {
-      // Collect all transcript alternatives across all results
       const texts = [];
       for (let i = 0; i < e.results.length; i++) {
         for (let j = 0; j < e.results[i].length; j++) {
@@ -340,7 +341,8 @@ export default function GlassHUD() {
         t.includes('argo')   || t.includes('arrow')  || t.includes('arba')  ||
         t.includes('arva')   || t.includes('arbo')   || t.includes('avo');
 
-      if (triggered && !voiceActiveRef.current) {
+      if (triggered && !voiceActiveRef.current && !handedOff) {
+        handedOff = true;
         r.abort();
         setWakeTranscript('');
         setWakeFlash(true);
@@ -351,13 +353,17 @@ export default function GlassHUD() {
     r.onend = () => {
       wakeActiveRef.current = false;
       setWakeTranscript('');
-      // restart immediately unless voice query is active
-      if (!voiceActiveRef.current) setTimeout(startWakeListener, 250);
-      else setWakeListening(false);
+      // handedOff = true means we're launching voice query — don't restart yet
+      // voice query's onend will call startWakeListener when it finishes
+      if (!handedOff && !voiceActiveRef.current) setTimeout(startWakeListener, 250);
+      else if (!handedOff) setWakeListening(false);
     };
     r.onerror = (ev) => {
       wakeActiveRef.current = false; setWakeListening(false); setWakeTranscript('');
-      if (ev.error !== 'not-allowed' && !voiceActiveRef.current) setTimeout(startWakeListener, 1000);
+      // 'aborted' means we called r.abort() ourselves — voice query handles the restart
+      if (ev.error !== 'not-allowed' && ev.error !== 'aborted' && !voiceActiveRef.current) {
+        setTimeout(startWakeListener, 1000);
+      }
     };
 
     wakeRecogRef.current = r;
