@@ -343,11 +343,12 @@ export default function GlassHUD() {
       if (triggered && !voiceActiveRef.current && !handedOff) {
         console.log('[ARVO wake] TRIGGERED — launching voice query');
         handedOff = true;
+        r.abort(); // release mic before voice query grabs it
         setWakeTranscript('');
         setWakeFlash(true);
         setWakeListening(false);
-        // Don't abort — let session end naturally; call startVoiceQuery immediately
-        startVoiceQuery();
+        // 400ms lets the mic fully release before voice query starts
+        setTimeout(() => startVoiceQuery(), 400);
       }
     };
 
