@@ -336,13 +336,9 @@ export default function GlassHUD() {
       setWakeTranscript(t);
       console.log('[ARVO wake]', t, '| voiceActive:', voiceActiveRef.current, '| handedOff:', handedOff);
 
-      // "ARVO" transcriptions vary wildly by accent — use regex to catch all ar+vowel/w variants
-      // Observed so far: arvo, arwa, arwu, aro, aru, kro, ro, harvey
-      const triggered =
-        /ar[vwou]/.test(t)   ||   // arvo, arva, arw*, aro, aru
-        /har[vw]/.test(t)    ||   // harvey, harvo, harva
-        t.includes('argo')   || t.includes('avo')  ||
-        (t.includes('hey') && (t.includes(' ro') || t.includes(' kro')));
+      // "hey" is always recognized correctly — trigger on "hey" + any word.
+      // ARVO's pronunciation varies too much across accents for reliable matching.
+      const triggered = /\bhey\s+\w/.test(t) || /ar[vwou]/.test(t) || /har[vw]/.test(t);
 
       if (triggered && !voiceActiveRef.current && !handedOff) {
         console.log('[ARVO wake] TRIGGERED — launching voice query');
