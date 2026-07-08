@@ -375,9 +375,31 @@ export default function GlassHUD() {
       const frame = captureFrame(videoRef.current);
       setHudMode('processing');
       setQuery(`"${text}"`);
-      setShowScan(!!frame);
       setVoiceTranscript('');
 
+      // visual questions use Claude Vision directly (brain has no camera access)
+      const isVisual = frame && /see|look|show|what.*(this|that|here|there|front|around)|describe|read this|scan/i.test(text);
+
+      if (isVisual) {
+        setShowScan(true);
+        try {
+          const ans = await askClaude(text, frame);
+          setShowScan(false);
+          setAnswer(ans);
+          setHudMode('answer');
+          setAnswerExiting(false);
+          speakText(ans);
+        } catch {
+          setShowScan(false);
+          setAnswer('Could not reach AI.');
+          setHudMode('answer');
+        }
+        voiceActiveRef.current = false;
+        setTimeout(startWakeListener, 2000);
+        return;
+      }
+
+      setShowScan(false);
       const seq = nextSeq();
       const sent = sendToBrain({
         type: 'discrete',
