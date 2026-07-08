@@ -336,9 +336,9 @@ export default function GlassHUD() {
       setWakeTranscript(t);
       console.log('[ARVO wake]', t, '| voiceActive:', voiceActiveRef.current, '| handedOff:', handedOff);
 
-      // "hey" is always recognized correctly — trigger on "hey" + any word.
-      // ARVO's pronunciation varies too much across accents for reliable matching.
-      const triggered = /\bhey\s+\w/.test(t) || /ar[vwou]/.test(t) || /har[vw]/.test(t);
+      // Trigger on "hey" as a word OR any ARVO variant.
+      // Chrome sometimes ends the session after just "hey" before the user says "ARVO".
+      const triggered = /\bhey\b/.test(t) || /ar[vwou]/.test(t) || /har[vw]/.test(t);
 
       if (triggered && !voiceActiveRef.current && !handedOff) {
         console.log('[ARVO wake] TRIGGERED — launching voice query');
