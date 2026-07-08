@@ -336,13 +336,12 @@ export default function GlassHUD() {
       setWakeTranscript(t);
       console.log('[ARVO wake]', t, '| voiceActive:', voiceActiveRef.current, '| handedOff:', handedOff);
 
-      // "ARVO" mis-transcriptions vary by accent — 'v'→'w' is common in Indian English
-      // Observed: arwa, arwu, kro, ro — catch all arw* variants + extras
+      // "ARVO" transcriptions vary wildly by accent — use regex to catch all ar+vowel/w variants
+      // Observed so far: arvo, arwa, arwu, aro, aru, kro, ro, harvey
       const triggered =
-        t.includes('arvo')   || t.includes('arwa')   || t.includes('arwu')  ||
-        t.includes('arw')    || t.includes('harvey')  || t.includes('harvo') ||
-        t.includes('argo')   || t.includes('arrow')   || t.includes('arba')  ||
-        t.includes('arva')   || t.includes('arbo')    || t.includes('avo')   ||
+        /ar[vwou]/.test(t)   ||   // arvo, arva, arw*, aro, aru
+        /har[vw]/.test(t)    ||   // harvey, harvo, harva
+        t.includes('argo')   || t.includes('avo')  ||
         (t.includes('hey') && (t.includes(' ro') || t.includes(' kro')));
 
       if (triggered && !voiceActiveRef.current && !handedOff) {
