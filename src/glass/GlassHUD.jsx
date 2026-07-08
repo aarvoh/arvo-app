@@ -197,7 +197,7 @@ export default function GlassHUD() {
           phonePingTimer.current = setTimeout(() => {
             setPhoneConnected(false);
             setConnState('reconnecting');
-          }, 8000);
+          }, 30000);
           break;
         case 'nav_start':
           setNavData({ instruction: msg.instruction, street: msg.street, distance: msg.distance, dest: msg.dest, eta: msg.eta });

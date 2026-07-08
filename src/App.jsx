@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import './App.css';
 import Home from './components/Home';
 import Maps from './components/Maps';
 import Settings from './components/Settings';
 import GlassActivity from './components/GlassActivity';
 import { handleCallback, isConnected } from './lib/spotify';
+import glassChannel from './lib/glassChannel';
 
 const DEVICE_HEIGHT = 844;
 
@@ -15,6 +16,13 @@ export default function App() {
   const [spotifyConnected, setSpotifyConnected] = useState(isConnected);
 
   const dragInfo = useRef({ active: false, startY: 0 });
+
+  // Heartbeat to glass — runs on every screen so switching tabs never drops connection
+  useEffect(() => {
+    glassChannel.postMessage({ type: 'heartbeat_phone' });
+    const id = setInterval(() => glassChannel.postMessage({ type: 'heartbeat_phone' }), 2000);
+    return () => clearInterval(id);
+  }, []);
 
   // Handle Spotify OAuth callback
   useEffect(() => {
@@ -115,3 +123,4 @@ export default function App() {
     </div>
   );
 }
+
