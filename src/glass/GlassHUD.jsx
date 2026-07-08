@@ -147,6 +147,7 @@ export default function GlassHUD() {
   // wake word
   const [wakeListening,  setWakeListening]  = useState(false);
   const [wakeFlash,      setWakeFlash]      = useState(false);
+  const [wakeTranscript, setWakeTranscript] = useState('');
   const wakeRecogRef     = useRef(null);
   const wakeActiveRef    = useRef(false);
 
@@ -320,8 +321,18 @@ export default function GlassHUD() {
     r.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript.toLowerCase();
-        if (t.includes('hey arvo') || t.includes('a arvo') || t.includes('i arvo') || t.includes('hey avo')) {
+        setWakeTranscript(t);
+        // "ARVO" isn't a dictionary word — speech API often transcribes it as
+        // harvey, harvo, arbow, arba, arva, arbo, avo, or just arvo
+        const triggered =
+          t.includes('arvo')      ||
+          t.includes('hey harv')  || t.includes('hey harvey') ||
+          t.includes('hey avo')   || t.includes('hey arba')   ||
+          t.includes('hey arva')  || t.includes('hey arbo')   ||
+          t.includes('a arvo')    || t.includes('i arvo');
+        if (triggered) {
           r.abort();
+          setWakeTranscript('');
           if (!voiceActiveRef.current) {
             setWakeFlash(true);
             setTimeout(() => { setWakeFlash(false); startVoiceQuery(); }, 600);
@@ -332,11 +343,11 @@ export default function GlassHUD() {
     };
 
     r.onend = () => {
-      wakeActiveRef.current = false; setWakeListening(false);
+      wakeActiveRef.current = false; setWakeListening(false); setWakeTranscript('');
       if (!voiceActiveRef.current) setTimeout(startWakeListener, 600);
     };
     r.onerror = (ev) => {
-      wakeActiveRef.current = false; setWakeListening(false);
+      wakeActiveRef.current = false; setWakeListening(false); setWakeTranscript('');
       if (ev.error !== 'not-allowed' && !voiceActiveRef.current) setTimeout(startWakeListener, 1500);
     };
 
@@ -827,7 +838,7 @@ export default function GlassHUD() {
       {/* Wake word indicator */}
       <div className={`wake-indicator${wakeListening && !voiceActive && hudMode === 'idle' ? ' visible' : ''}`}>
         <span className="wake-ring" />
-        hey arvo
+        {wakeTranscript ? wakeTranscript : 'hey arvo'}
       </div>
 
       {/* Control bar */}
