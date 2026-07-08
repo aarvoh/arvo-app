@@ -23,6 +23,7 @@ export default function useBrainSocket() {
   const delayRef      = useRef(1000);
   const mountedRef    = useRef(true);
   const retryTimer    = useRef(null);
+  const pingTimer     = useRef(null);
   const everConnected = useRef(false);
 
   const connect = useCallback(() => {
@@ -37,6 +38,13 @@ export default function useBrainSocket() {
       everConnected.current = true;
       delayRef.current = 1000;
       setConnState('connected');
+      // ping every 25s so Railway never kills the idle WebSocket
+      clearInterval(pingTimer.current);
+      pingTimer.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 25000);
     };
 
     ws.onmessage = (e) => {
@@ -49,10 +57,12 @@ export default function useBrainSocket() {
         if (msg.type === 'connection_state') {
           setConnState(msg.state);
         }
+        // pong / heartbeat_ack — ignore, just keep-alive acknowledgements
       } catch {}
     };
 
     ws.onclose = () => {
+      clearInterval(pingTimer.current);
       if (!mountedRef.current) return;
       if (everConnected.current) setConnState('reconnecting');
       retryTimer.current = setTimeout(() => {
@@ -72,6 +82,7 @@ export default function useBrainSocket() {
     return () => {
       mountedRef.current = false;
       clearTimeout(retryTimer.current);
+      clearInterval(pingTimer.current);
       wsRef.current?.close();
     };
   }, [connect]);
