@@ -405,15 +405,17 @@ export default function GlassHUD() {
     const recog = new SR();
     recog.lang = 'en-IN'; recog.interimResults = true; recog.continuous = false;
 
-    recog.onstart = () => { setVoiceActive(true); setHudMode('listening'); setVoiceTranscript(''); };
+    recog.onstart = () => { console.log('[ARVO voice] started'); setVoiceActive(true); setHudMode('listening'); setVoiceTranscript(''); };
 
     recog.onresult = (e) => {
       const t = Array.from(e.results).map(r => r[0].transcript).join('');
+      console.log('[ARVO voice] result:', t);
       setVoiceTranscript(t);
       transcriptRef.current = t;
     };
 
     recog.onend = async () => {
+      console.log('[ARVO voice] ended, text:', transcriptRef.current);
       setVoiceActive(false);
       voiceActiveRef.current = false;
 
@@ -561,7 +563,8 @@ export default function GlassHUD() {
       // if sent=true → response comes via lastCard useEffect which calls startSession
     };
 
-    recog.onerror = () => {
+    recog.onerror = (ev) => {
+      console.log('[ARVO voice] error:', ev.error);
       setVoiceActive(false); voiceActiveRef.current = false;
       if (inSessionRef.current) {
         setTimeout(() => {
