@@ -309,46 +309,55 @@ export default function GlassHUD() {
   }, [lastCard]); // eslint-disable-line
 
   // ── wake word listener ──
+  // Uses short non-continuous sessions looped rapidly — more reliable than
+  // continuous:true which often silently drops audio on desktop Chrome.
   const startWakeListener = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR || wakeActiveRef.current || voiceActiveRef.current) return;
 
     const r = new SR();
-    r.continuous = true; r.interimResults = true; r.lang = 'en-IN';
+    r.continuous = false;
+    r.interimResults = true;
+    r.lang = 'en-US';
+    r.maxAlternatives = 3;
 
     r.onstart = () => { wakeActiveRef.current = true; setWakeListening(true); };
 
     r.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript.toLowerCase();
-        setWakeTranscript(t);
-        // "ARVO" isn't a dictionary word — speech API often transcribes it as
-        // harvey, harvo, arbow, arba, arva, arbo, avo, or just arvo
-        const triggered =
-          t.includes('arvo')      ||
-          t.includes('hey harv')  || t.includes('hey harvey') ||
-          t.includes('hey avo')   || t.includes('hey arba')   ||
-          t.includes('hey arva')  || t.includes('hey arbo')   ||
-          t.includes('a arvo')    || t.includes('i arvo');
-        if (triggered) {
-          r.abort();
-          setWakeTranscript('');
-          if (!voiceActiveRef.current) {
-            setWakeFlash(true);
-            setTimeout(() => { setWakeFlash(false); startVoiceQuery(); }, 600);
-          }
-          return;
+      // Collect all transcript alternatives across all results
+      const texts = [];
+      for (let i = 0; i < e.results.length; i++) {
+        for (let j = 0; j < e.results[i].length; j++) {
+          texts.push(e.results[i][j].transcript.toLowerCase());
         }
+      }
+      const t = texts.join(' ');
+      setWakeTranscript(t);
+
+      // "ARVO" mis-transcriptions: harvey, harvo, argo, arrow, arba, arva, avo
+      const triggered =
+        t.includes('arvo')   || t.includes('harvey') || t.includes('harvo') ||
+        t.includes('argo')   || t.includes('arrow')  || t.includes('arba')  ||
+        t.includes('arva')   || t.includes('arbo')   || t.includes('avo');
+
+      if (triggered && !voiceActiveRef.current) {
+        r.abort();
+        setWakeTranscript('');
+        setWakeFlash(true);
+        setTimeout(() => { setWakeFlash(false); startVoiceQuery(); }, 600);
       }
     };
 
     r.onend = () => {
-      wakeActiveRef.current = false; setWakeListening(false); setWakeTranscript('');
-      if (!voiceActiveRef.current) setTimeout(startWakeListener, 600);
+      wakeActiveRef.current = false;
+      setWakeTranscript('');
+      // restart immediately unless voice query is active
+      if (!voiceActiveRef.current) setTimeout(startWakeListener, 250);
+      else setWakeListening(false);
     };
     r.onerror = (ev) => {
       wakeActiveRef.current = false; setWakeListening(false); setWakeTranscript('');
-      if (ev.error !== 'not-allowed' && !voiceActiveRef.current) setTimeout(startWakeListener, 1500);
+      if (ev.error !== 'not-allowed' && !voiceActiveRef.current) setTimeout(startWakeListener, 1000);
     };
 
     wakeRecogRef.current = r;
