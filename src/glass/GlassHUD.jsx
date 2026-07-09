@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './GlassHUD.css';
 import glassChannel from '../lib/glassChannel';
 import useBrainSocket from '../lib/useBrainSocket';
-import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext, searchAndPlay } from '../lib/spotify';
+import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext, previous as spotifyPrev, searchAndPlay } from '../lib/spotify';
 
 // ─── app branding ─────────────────────────────────────────────────
 function getAppBrand(app = '') {
@@ -77,6 +77,16 @@ function AppIcon({ app = '', size = 16 }) {
     </svg>
   );
 }
+
+// ─── app home grid tiles ──────────────────────────────────────────
+const APP_TILES = [
+  { name: 'WhatsApp',  bg: '#0d2218' },
+  { name: 'Instagram', bg: 'linear-gradient(135deg,#2d0e3f 0%,#3f1020 100%)' },
+  { name: 'Messenger', bg: '#091a30' },
+  { name: 'Calls',     bg: '#0a2410' },
+  { name: 'Music',     bg: '#130d24' },
+  { name: 'Camera',    bg: '#2a1008' },
+];
 
 // ─── weather helpers ──────────────────────────────────────────────
 const WMO = {
@@ -883,6 +893,50 @@ export default function GlassHUD() {
             <span className="proc-label">{showScan ? 'scanning scene' : 'processing'}</span>
           </div>
 
+          {/* App Home Grid */}
+          {hudMode === 'idle' && !showMusic && !showWeather && (
+            <div className="app-home-grid">
+              <div className="app-grid-dots">
+                <span className="grid-dot active" /><span className="grid-dot" /><span className="grid-dot" />
+              </div>
+              <div className="app-grid-tiles">
+                {APP_TILES.map(({ name, bg }) => (
+                  <div key={name} className="app-tile" style={{ background: bg }}>
+                    <div className="app-tile-icon"><AppIcon app={name} size={22} /></div>
+                    <span className="app-tile-name">{name}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="ask-arvo-bar" onClick={startVoiceQuery} style={{ pointerEvents: 'auto', cursor: 'pointer' }}>
+                <div className="ask-arvo-orb" />
+                <span className="ask-arvo-text">Ask ARVO</span>
+              </div>
+            </div>
+          )}
+
+          {/* Full Music Player */}
+          {showMusic && musicData && hudMode === 'idle' && (
+            <div className="music-player-full">
+              <div className="mpf-art">
+                <AppIcon app={musicData.source || 'spotify'} size={52} />
+              </div>
+              <div className="mpf-track">{musicData.track || 'Now Playing'}</div>
+              <div className="mpf-artist">{musicData.artist || ''}</div>
+              <div className="mpf-progress"><div className="mpf-fill" /></div>
+              <div className="mpf-controls">
+                <button className="mpf-btn" onClick={() => spotifyPrev()}>
+                  <svg viewBox="0 0 24 24" fill="currentColor" style={{width:20,height:20}}><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+                </button>
+                <button className="mpf-btn mpf-play" onClick={() => spotifyPause()}>
+                  <svg viewBox="0 0 24 24" fill="currentColor" style={{width:24,height:24}}><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+                <button className="mpf-btn" onClick={() => spotifyNext()}>
+                  <svg viewBox="0 0 24 24" fill="currentColor" style={{width:20,height:20}}><path d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z"/></svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* AI answer card */}
           {(isAnswer || answerExiting) && (
             <div
@@ -944,18 +998,6 @@ export default function GlassHUD() {
             </div>
           </div>
 
-          <div className={`music-card${showMusic && musicData ? ' visible' : ''}${!showMusic && musicData ? ' exiting' : ''}`}>
-            <div className="music-icon-wrap">
-              <AppIcon app={musicData?.source || 'spotify'} size={18} />
-              <div className="music-eq">
-                {[...Array(4)].map((_, i) => <div key={i} className="music-eq-bar" />)}
-              </div>
-            </div>
-            <div className="music-info">
-              <div className="music-track">{musicData?.track}</div>
-              <div className="music-artist">{musicData?.artist}</div>
-            </div>
-          </div>
         </div>
       </div>
 

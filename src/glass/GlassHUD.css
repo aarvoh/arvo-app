@@ -485,6 +485,109 @@ html, body, #root { width: 100%; height: 100%; background: #000; overflow: hidde
 }
 .scan-menu-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
 
+/* ─── APP HOME GRID ──────────────────────────────────────────────── */
+.app-home-grid {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: 100%; max-width: 300px;
+}
+.app-grid-dots { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+.grid-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  transition: background 0.2s ease;
+}
+.grid-dot.active { background: rgba(255,255,255,0.75); }
+.app-grid-tiles {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;
+}
+.app-tile {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.07);
+  cursor: pointer; transition: filter 0.15s ease;
+}
+.app-tile:hover { filter: brightness(1.2); }
+.app-tile-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.08); flex-shrink: 0;
+}
+.app-tile-name {
+  font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,0.88);
+  font-family: 'Inter', sans-serif; letter-spacing: 0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Ask ARVO bar */
+.ask-arvo-bar {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 11px 16px; border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  position: relative; overflow: hidden;
+}
+.ask-arvo-bar::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #25D366, #60A5FA, #A855F7, #EC4899, #F97316);
+}
+.ask-arvo-orb {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  background: conic-gradient(from 0deg, #25D366, #60A5FA, #A855F7, #EC4899, #25D366);
+  animation: orb-spin 4s linear infinite;
+}
+@keyframes orb-spin { to { transform: rotate(360deg); } }
+.ask-arvo-text {
+  font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.5);
+  font-family: 'Inter', sans-serif; letter-spacing: 0.01em;
+}
+
+/* ─── FULL MUSIC PLAYER ──────────────────────────────────────────── */
+.music-player-full {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  width: 200px;
+}
+.mpf-art {
+  width: 120px; height: 120px; border-radius: 18px;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.mpf-track {
+  font-size: 15px; font-weight: 700; color: #1DB954;
+  font-family: 'Inter', sans-serif; letter-spacing: 0.01em;
+  text-align: center; max-width: 200px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mpf-artist {
+  font-size: 11.5px; color: rgba(255,255,255,0.45);
+  font-family: 'Inter', sans-serif; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;
+}
+.mpf-progress {
+  width: 100%; height: 3px; background: rgba(255,255,255,0.12);
+  border-radius: 2px; overflow: hidden;
+}
+.mpf-fill {
+  width: 35%; height: 100%; background: #1DB954; border-radius: 2px;
+}
+.mpf-controls {
+  display: flex; align-items: center; justify-content: center; gap: 20px;
+  pointer-events: auto;
+}
+.mpf-btn {
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.7); display: flex; align-items: center;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+.mpf-btn:hover { color: #fff; }
+.mpf-btn:active { transform: scale(0.9); }
+.mpf-play {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: #1DB954; color: #000;
+  display: flex; align-items: center; justify-content: center;
+}
+.mpf-play:hover { background: #22e05f; color: #000; }
+
 .scan-card {
   background: rgba(6,7,10,0.92); border: 1px solid rgba(96,165,250,0.18);
   border-radius: 14px; padding: 11px 13px; max-width: 260px; width: 90%;
