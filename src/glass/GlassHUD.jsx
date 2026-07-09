@@ -419,7 +419,7 @@ export default function GlassHUD() {
     const recog = new SR();
     recog.lang = 'en-IN'; recog.interimResults = true; recog.continuous = false;
 
-    recog.onstart = () => { setVoiceActive(true); setHudMode('listening'); setVoiceTranscript(''); };
+    recog.onstart = () => { setVoiceActive(true); setHudMode('listening'); setVoiceTranscript(''); setWakeFlash(false); };
 
     recog.onresult = (e) => {
       const t = Array.from(e.results).map(r => r[0].transcript).join('');
@@ -600,6 +600,10 @@ export default function GlassHUD() {
     queryRecogRef.current?.stop();
     setVoiceActive(false);
     voiceActiveRef.current = false;
+    setWakeFlash(false);
+    setHudMode('idle');
+    setWakeListening(false);
+    setTimeout(startWakeListener, 400);
   }
 
   // ── controls chrome ──
