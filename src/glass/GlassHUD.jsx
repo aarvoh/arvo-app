@@ -603,6 +603,7 @@ export default function GlassHUD() {
     setWakeFlash(false);
     setHudMode('idle');
     setWakeListening(false);
+    endSession(); // clears inSessionRef so the 900ms auto-listen timer can't relaunch voice query
     setTimeout(startWakeListener, 400);
   }
 
