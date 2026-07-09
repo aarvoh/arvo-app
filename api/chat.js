@@ -1,3 +1,5 @@
+import Anthropic from '@anthropic-ai/sdk';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).end(); return; }
 
@@ -9,7 +11,6 @@ export default async function handler(req, res) {
 
   try {
     const { messages } = req.body;
-    const { default: Anthropic } = await import('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey });
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',

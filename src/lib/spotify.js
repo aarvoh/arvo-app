@@ -78,6 +78,7 @@ export async function refreshToken() {
   if (!data.access_token) return null;
   localStorage.setItem('spotify_token', data.access_token);
   localStorage.setItem('spotify_expiry', Date.now() + data.expires_in * 1000);
+  if (data.refresh_token) localStorage.setItem('spotify_refresh', data.refresh_token);
   return data.access_token;
 }
 

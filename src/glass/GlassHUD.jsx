@@ -165,14 +165,16 @@ export default function GlassHUD() {
 
   // ── camera ──
   useEffect(() => {
+    let activeStream = null;
+    const attach = (stream) => {
+      activeStream = stream;
+      if (videoRef.current) { videoRef.current.srcObject = stream; setCamReady(true); }
+    };
     navigator.mediaDevices?.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } } })
-      .then(stream => { if (videoRef.current) { videoRef.current.srcObject = stream; setCamReady(true); } })
-      .catch(() => {
-        navigator.mediaDevices?.getUserMedia({ video: true })
-          .then(stream => { if (videoRef.current) { videoRef.current.srcObject = stream; setCamReady(true); } })
-          .catch(() => {});
-      });
-    return () => videoRef.current?.srcObject?.getTracks().forEach(t => t.stop());
+      .then(attach)
+      .catch(() => navigator.mediaDevices?.getUserMedia({ video: true }).then(attach).catch(() => {}));
+    // capture stream in closure — videoRef.current is null by the time cleanup runs
+    return () => activeStream?.getTracks().forEach(t => t.stop());
   }, []);
 
   // ── weather ──
@@ -294,7 +296,7 @@ export default function GlassHUD() {
     if (card.card_type === 'ai_response' || card.card_type === 'action_result' ||
         card.card_type === 'text' || card.card_type === 'status' || card.card_type === 'error') {
       setAnswer(card.body || '');
-      setQuery(card.title ? `"${card.title}"` : query);
+      setQuery(prev => card.title ? `"${card.title}"` : prev);
       setHudMode('answer');
       setAnswerExiting(false);
       setShowScan(false);
