@@ -375,6 +375,7 @@ html, body, #root { width: 100%; height: 100%; background: #000; overflow: hidde
 }
 .music-card.visible { opacity: 1; transform: translateX(0); }
 .music-card.exiting { opacity: 0; transform: translateX(10px); }
+.music-icon-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
 .music-eq { display: flex; align-items: center; gap: 2px; height: 12px; }
 .music-eq-bar { width: 2.5px; border-radius: 2px; background: var(--g-green); animation: eq-bar 0.6s ease-in-out infinite alternate; }
 .music-eq-bar:nth-child(1) { height: 5px;  animation-delay: 0s; }

@@ -4,6 +4,80 @@ import glassChannel from '../lib/glassChannel';
 import useBrainSocket from '../lib/useBrainSocket';
 import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext, searchAndPlay } from '../lib/spotify';
 
+// ─── app branding ─────────────────────────────────────────────────
+function getAppBrand(app = '') {
+  const n = app.toLowerCase();
+  if (n.includes('whatsapp'))                      return { color: '#25D366', bg: 'rgba(37,211,102,0.15)', border: 'rgba(37,211,102,0.3)' };
+  if (n.includes('instagram'))                     return { color: '#E1306C', bg: 'rgba(225,48,108,0.15)', border: 'rgba(225,48,108,0.3)' };
+  if (n.includes('messenger') || n.includes('facebook')) return { color: '#0099FF', bg: 'rgba(0,153,255,0.15)', border: 'rgba(0,153,255,0.3)' };
+  if (n.includes('gmail') || n.includes('email') || n.includes('mail')) return { color: '#EA4335', bg: 'rgba(234,67,53,0.15)', border: 'rgba(234,67,53,0.3)' };
+  if (n.includes('youtube'))                       return { color: '#FF0000', bg: 'rgba(255,0,0,0.15)',    border: 'rgba(255,0,0,0.3)' };
+  if (n.includes('spotify'))                       return { color: '#1DB954', bg: 'rgba(29,185,84,0.15)', border: 'rgba(29,185,84,0.3)' };
+  if (n.includes('maps') || n.includes('waze'))   return { color: '#4285F4', bg: 'rgba(66,133,244,0.15)', border: 'rgba(66,133,244,0.3)' };
+  if (n.includes('snapchat'))                      return { color: '#FFFC00', bg: 'rgba(255,252,0,0.12)',  border: 'rgba(255,252,0,0.25)' };
+  if (n.includes('twitter') || n.includes('x'))   return { color: '#ffffff', bg: 'rgba(255,255,255,0.1)', border: 'rgba(255,255,255,0.2)' };
+  if (n.includes('telegram'))                      return { color: '#2AABEE', bg: 'rgba(42,171,238,0.15)', border: 'rgba(42,171,238,0.3)' };
+  if (n.includes('phone') || n.includes('call'))  return { color: '#34D399', bg: 'rgba(52,211,153,0.15)', border: 'rgba(52,211,153,0.3)' };
+  return { color: 'rgba(255,255,255,0.6)', bg: 'rgba(255,255,255,0.07)', border: 'rgba(255,255,255,0.1)' };
+}
+
+function AppIcon({ app = '', size = 16 }) {
+  const n = app.toLowerCase();
+  const s = { width: size, height: size, flexShrink: 0 };
+
+  if (n.includes('whatsapp')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#25D366'}}>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+  );
+  if (n.includes('instagram')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#E1306C'}}>
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+    </svg>
+  );
+  if (n.includes('messenger') || n.includes('facebook')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#0099FF'}}>
+      <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.654V24l4.088-2.242c1.092.301 2.246.465 3.443.465 6.627 0 12-4.975 12-11.112C24 4.974 18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z"/>
+    </svg>
+  );
+  if (n.includes('gmail') || n.includes('email') || n.includes('mail')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#EA4335'}}>
+      <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 010 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.908 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+    </svg>
+  );
+  if (n.includes('youtube')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#FF0000'}}>
+      <path d="M23.495 6.205a3.007 3.007 0 00-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 00.527 6.205a31.247 31.247 0 00-.522 5.805 31.247 31.247 0 00.522 5.783 3.007 3.007 0 002.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 002.088-2.088 31.247 31.247 0 00.5-5.783 31.247 31.247 0 00-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+    </svg>
+  );
+  if (n.includes('spotify')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#1DB954'}}>
+      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+    </svg>
+  );
+  if (n.includes('maps') || n.includes('waze') || n.includes('navigation')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#4285F4'}}>
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+    </svg>
+  );
+  if (n.includes('snapchat')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#FFFC00'}}>
+      <path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.304 4.transient93l-.01.16c-.012.19.048.39.181.532.162.174.42.252.68.207.062-.01.12-.016.175-.016.663 0 1.096.418 1.098 1.066.002.54-.344.97-.81 1.09-.06.014-.12.022-.177.022-.37 0-.726-.167-.96-.45-.026-.032-.051-.064-.073-.098-.113-.162-.263-.27-.456-.267-.234.003-.44.152-.523.38-.08.224-.046.47.097.652.384.49.626 1.09.626 1.75 0 .87-.4 1.66-1.06 2.22a3.97 3.97 0 01-2.4.75c-.207 0-.412-.018-.61-.05-.08-.012-.16-.018-.238-.018-.222 0-.43.058-.6.167-.175.11-.32.27-.406.47-.087.2-.1.42-.037.63.063.213.187.395.357.53.17.134.368.2.574.2.15 0 .295-.036.43-.11a.77.77 0 01.353-.093c.268 0 .506.146.627.38.087.171.1.37.037.55-.062.18-.188.33-.35.42a3.08 3.08 0 01-1.457.338c-.53 0-1.05-.118-1.517-.345-.47-.228-.87-.55-1.176-.944a.8.8 0 00-.637-.313.8.8 0 00-.637.313 3.43 3.43 0 01-1.176.944 3.43 3.43 0 01-1.517.345 3.08 3.08 0 01-1.457-.338.77.77 0 01-.35-.42.62.62 0 01.037-.55.7.7 0 01.627-.38.77.77 0 01.353.093c.135.074.28.11.43.11.206 0 .404-.066.574-.2.17-.135.294-.317.357-.53.063-.21.05-.43-.037-.63a1.07 1.07 0 00-.406-.47 1.07 1.07 0 00-.6-.167c-.078 0-.158.006-.238.018-.198.032-.403.05-.61.05a3.97 3.97 0 01-2.4-.75c-.66-.56-1.06-1.35-1.06-2.22 0-.66.242-1.26.626-1.75.143-.182.177-.428.097-.652-.083-.228-.29-.377-.523-.38-.193-.003-.343.105-.456.267a1.2 1.2 0 01-.073.098c-.234.283-.59.45-.96.45-.057 0-.117-.008-.177-.022-.466-.12-.812-.55-.81-1.09.002-.648.435-1.066 1.098-1.066.055 0 .113.006.175.016.26.045.518-.033.68-.207.133-.142.193-.342.181-.532l-.01-.16c-.099-1.711-.225-3.737.304-4.93C7.86 1.069 11.217.793 12.206.793z"/>
+    </svg>
+  );
+  if (n.includes('telegram')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#2AABEE'}}>
+      <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+    </svg>
+  );
+  // default
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{...s, color:'rgba(255,255,255,0.55)'}}>
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+    </svg>
+  );
+}
+
 // ─── weather helpers ──────────────────────────────────────────────
 const WMO = {
   0:'Clear', 1:'Mostly clear', 2:'Partly cloudy', 3:'Overcast',
@@ -676,12 +750,15 @@ export default function GlassHUD() {
       {/* ── CALL OVERLAY ── */}
       {showCall && callData && (
         <div className="call-overlay">
-          <div className="call-ring">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.37 18a19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.93-8.41A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-            </svg>
-          </div>
-          <div className="call-app">{callData.app}</div>
+          {(() => {
+            const brand = getAppBrand(callData.app);
+            return (
+              <div className="call-ring" style={{ background: brand.bg, borderColor: brand.border }}>
+                <AppIcon app={callData.app} size={28} />
+              </div>
+            );
+          })()}
+          <div className="call-app" style={{ color: getAppBrand(callData.app).color }}>{callData.app}</div>
           <div className="call-caller">{callData.caller}</div>
           <div className="call-label">Incoming call</div>
           <div className="call-actions">
@@ -718,19 +795,22 @@ export default function GlassHUD() {
       <div className="hud">
 
         {/* Notification toast */}
-        <div className={`hud-notification${showNotif && notifData ? ' visible' : ''}${!showNotif && notifData ? ' exiting' : ''}`}>
-          <div className="notif-app-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 11.5a8.5 8.5 0 1 1-3.8-7.1M21 11.5L17 10l1.2-3.6"/>
-            </svg>
-          </div>
-          <div className="notif-body">
-            <div className="notif-app">{notifData?.app}</div>
-            <div className="notif-sender">{notifData?.sender}</div>
-            <div className="notif-preview">{notifData?.preview}</div>
-          </div>
-          <div className="notif-hint">say "reply" to respond</div>
-        </div>
+        {(() => {
+          const brand = getAppBrand(notifData?.app);
+          return (
+            <div className={`hud-notification${showNotif && notifData ? ' visible' : ''}${!showNotif && notifData ? ' exiting' : ''}`}>
+              <div className="notif-app-icon" style={{ background: brand.bg, border: `1px solid ${brand.border}` }}>
+                <AppIcon app={notifData?.app || ''} size={15} />
+              </div>
+              <div className="notif-body">
+                <div className="notif-app" style={{ color: brand.color }}>{notifData?.app}</div>
+                <div className="notif-sender">{notifData?.sender}</div>
+                <div className="notif-preview">{notifData?.preview}</div>
+              </div>
+              <div className="notif-hint">say "reply"</div>
+            </div>
+          );
+        })()}
 
         {/* Status bar */}
         <div className="hud-top">
@@ -865,8 +945,11 @@ export default function GlassHUD() {
           </div>
 
           <div className={`music-card${showMusic && musicData ? ' visible' : ''}${!showMusic && musicData ? ' exiting' : ''}`}>
-            <div className="music-eq">
-              {[...Array(4)].map((_, i) => <div key={i} className="music-eq-bar" />)}
+            <div className="music-icon-wrap">
+              <AppIcon app={musicData?.source || 'spotify'} size={18} />
+              <div className="music-eq">
+                {[...Array(4)].map((_, i) => <div key={i} className="music-eq-bar" />)}
+              </div>
             </div>
             <div className="music-info">
               <div className="music-track">{musicData?.track}</div>
