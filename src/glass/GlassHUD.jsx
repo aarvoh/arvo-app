@@ -810,27 +810,26 @@ export default function GlassHUD() {
               onClick={dismissAnswer}
               style={{ cursor: 'pointer', pointerEvents: 'auto' }}
             >
-              <div className="answer-card-eyebrow">
-                ARVO · <span style={{opacity:0.7, fontSize:'0.85em'}}>{lastCard?.title || 'AI'}</span>
+              <div className="answer-card-topbar">
+                <span className="answer-arvo-dot" />
+                <span className="answer-arvo-label">ARVO</span>
                 {isSpeaking && (
                   <span className="speaking-badge">
                     <span className="speak-dot" /><span className="speak-dot" /><span className="speak-dot" />
-                    speaking
                   </span>
                 )}
               </div>
-              <div className="answer-card-query">{query}</div>
               <div
                 className="answer-card-text"
                 ref={answerScrollRef}
-                style={{ maxHeight: '35vh', overflowY: 'auto' }}
+                style={{ maxHeight: '32vh', overflowY: 'auto' }}
               >
                 {answer}
               </div>
               <div className="answer-card-footer">
                 {inSession
-                  ? <><span className="session-dot" style={{marginRight:4}} /> say your next command</>
-                  : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width:11,height:11}}><path d="M20 6L9 17l-5-5"/></svg> tap or say "home" to dismiss</>
+                  ? <><span className="session-dot" style={{marginRight:4}} /> listening…</>
+                  : <>tap to dismiss</>
                 }
               </div>
             </div>
