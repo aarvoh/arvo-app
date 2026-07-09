@@ -79,13 +79,23 @@ function AppIcon({ app = '', size = 16 }) {
 }
 
 // ─── app home grid tiles ──────────────────────────────────────────
-const APP_TILES = [
-  { name: 'WhatsApp',  bg: '#0d2218' },
-  { name: 'Instagram', bg: 'linear-gradient(135deg,#2d0e3f 0%,#3f1020 100%)' },
-  { name: 'Messenger', bg: '#091a30' },
-  { name: 'Calls',     bg: '#0a2410' },
-  { name: 'Music',     bg: '#130d24' },
-  { name: 'Camera',    bg: '#2a1008' },
+const PAGE_TILES = [
+  [
+    { name: 'WhatsApp',  bg: '#0d2218' },
+    { name: 'Instagram', bg: 'linear-gradient(135deg,#2d0e3f 0%,#3f1020 100%)' },
+    { name: 'Messenger', bg: '#091a30' },
+    { name: 'Calls',     bg: '#0a2410' },
+    { name: 'Spotify',   bg: '#091a09' },
+    { name: 'Maps',      bg: '#0a1220' },
+  ],
+  [
+    { name: 'Camera',    bg: '#2a1008' },
+    { name: 'YouTube',   bg: '#200808' },
+    { name: 'Telegram',  bg: '#08161f' },
+    { name: 'Snapchat',  bg: '#1a1a06' },
+    { name: 'Gmail',     bg: '#1f0a08' },
+    { name: 'Twitter',   bg: '#080a12' },
+  ],
 ];
 
 // ─── weather helpers ──────────────────────────────────────────────
@@ -215,6 +225,8 @@ export default function GlassHUD() {
   const [notifData,    setNotifData]    = useState(null);  const [showNotif,   setShowNotif]   = useState(false);
   const [callData,     setCallData]     = useState(null);  const [showCall,    setShowCall]    = useState(false);
   const [showWeather,  setShowWeather]  = useState(false);
+  const [gridPage,     setGridPage]     = useState(0);
+  const gridTouchX = useRef(null);
   const showCallRef = useRef(false);
   useEffect(() => { showCallRef.current = showCall; }, [showCall]);
 
@@ -895,12 +907,25 @@ export default function GlassHUD() {
 
           {/* App Home Grid */}
           {hudMode === 'idle' && !showMusic && !showWeather && (
-            <div className="app-home-grid">
+            <div
+              className="app-home-grid"
+              onTouchStart={e => { gridTouchX.current = e.touches[0].clientX; }}
+              onTouchEnd={e => {
+                if (gridTouchX.current === null) return;
+                const dx = e.changedTouches[0].clientX - gridTouchX.current;
+                if (dx < -40) setGridPage(p => Math.min(p + 1, PAGE_TILES.length - 1));
+                else if (dx > 40) setGridPage(p => Math.max(p - 1, 0));
+                gridTouchX.current = null;
+              }}
+            >
               <div className="app-grid-dots">
-                <span className="grid-dot active" /><span className="grid-dot" /><span className="grid-dot" />
+                {PAGE_TILES.map((_, i) => (
+                  <span key={i} className={`grid-dot${gridPage === i ? ' active' : ''}`}
+                    onClick={() => setGridPage(i)} style={{ pointerEvents: 'auto', cursor: 'pointer' }} />
+                ))}
               </div>
               <div className="app-grid-tiles">
-                {APP_TILES.map(({ name, bg }) => (
+                {PAGE_TILES[gridPage].map(({ name, bg }) => (
                   <div key={name} className="app-tile" style={{ background: bg }}>
                     <div className="app-tile-icon"><AppIcon app={name} size={22} /></div>
                     <span className="app-tile-name">{name}</span>
@@ -982,23 +1007,26 @@ export default function GlassHUD() {
           )}
         </div>
 
-        {/* ── BOTTOM STRIP ── */}
-        <div className="hud-bottom">
-          <div className={`nav-card${showNav && navData ? ' visible' : ''}${!showNav && navData ? ' exiting' : ''}`}>
-            <div className="nav-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M7 17l10-10M7 7h10v10"/>
-              </svg>
+        {/* ── MAPS NAV CARD (Meta style) ── */}
+        {navData && (
+          <div className={`maps-nav-card${showNav ? ' visible' : ' exiting'}`}>
+            <div className="maps-grid-overlay">
+              {[...Array(6)].map((_, i) => <div key={i} className="maps-grid-line-h" style={{ top: `${(i+1)*16}%` }} />)}
+              {[...Array(6)].map((_, i) => <div key={i} className="maps-grid-line-v" style={{ left: `${(i+1)*16}%` }} />)}
+              <div className="maps-pin">
+                <svg viewBox="0 0 24 24" fill="#EF4444" style={{width:18,height:18}}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              </div>
             </div>
-            <div className="nav-text">
-              <div className="nav-dist">{navData?.distance}</div>
-              <div className="nav-instruction">{navData?.instruction}</div>
-              <div className="nav-street">{navData?.street}</div>
-              {navData?.dest && <div className="nav-dest">→ {navData.dest}{navData.eta ? ` · ${navData.eta}` : ''}</div>}
+            <div className="maps-info-card">
+              <div className="maps-dest">{navData.dest || navData.street}</div>
+              <div className="maps-sub">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:11,height:11,opacity:0.6}}><path d="M16 16l-4-4-4 4M12 12V3"/><path d="M20 21H4"/></svg>
+                {navData.distance}{navData.eta ? ` · ETA ${navData.eta}` : ''}
+              </div>
+              <div className="maps-instruction">{navData.instruction} onto {navData.street}</div>
             </div>
           </div>
-
-        </div>
+        )}
       </div>
 
       {/* Live voice transcript */}
