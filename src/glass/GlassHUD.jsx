@@ -387,10 +387,14 @@ export default function GlassHUD() {
   function triggerCall()    { setCallData({ caller: 'Priya', app: 'WhatsApp' }); setShowCall(true); }
 
   function dismissAnswer() {
+    endSession(); // cancel auto-relisten timer so voice doesn't restart after dismiss
     window.speechSynthesis?.cancel();
     setIsSpeaking(false);
     setAnswerExiting(true);
-    setTimeout(() => { setHudMode('idle'); setAnswerExiting(false); setAnswer(''); setQuery(''); setShowScan(false); }, 400);
+    setTimeout(() => {
+      setHudMode('idle'); setAnswerExiting(false); setAnswer(''); setQuery(''); setShowScan(false);
+      if (!isIOS) startWakeListener();
+    }, 400);
   }
 
   function acceptCall() { setShowCall(false); speakText('Call accepted'); }
@@ -447,8 +451,9 @@ export default function GlassHUD() {
         return;
       }
 
-      // strip accidental "hey arvo" prefix during session
-      text = text.replace(/^(hey\s+)?(arvo)\s*/i, '').trim() || text;
+      // strip "hey [arvo]" / "arvo" prefix — wake trigger fires on "hey" alone so
+      // "hey what's the time" must become "what's the time"
+      text = text.replace(/^(?:hey\s+(?:arvo\s*)?|arvo\s+)/i, '').trim() || text;
 
       setHudMode('processing');
       setQuery(`"${text}"`);
