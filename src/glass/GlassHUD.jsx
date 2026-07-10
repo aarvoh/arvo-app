@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './GlassHUD.css';
 import glassChannel from '../lib/glassChannel';
 import useBrainSocket from '../lib/useBrainSocket';
-import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext, previous as spotifyPrev, searchAndPlay } from '../lib/spotify';
+import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext, previous as spotifyPrev, searchAndPlay, getCurrentlyPlaying } from '../lib/spotify';
 
 // ─── app branding ─────────────────────────────────────────────────
 function getAppBrand(app = '') {
@@ -68,6 +68,16 @@ function AppIcon({ app = '', size = 16 }) {
   if (n.includes('telegram')) return (
     <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#2AABEE'}}>
       <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+    </svg>
+  );
+  if (n.includes('call') || n.includes('phone')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#22C55E'}}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+    </svg>
+  );
+  if (n.includes('camera') || n.includes('photo')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#F97316'}}>
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4" fill="rgba(0,0,0,0.4)"/>
     </svg>
   );
   // default
@@ -479,9 +489,38 @@ export default function GlassHUD() {
 
   // ── manual triggers ──
   function triggerNav()     { setNavData({ instruction: 'Turn right', street: 'MG Road', distance: '200 m' }); setShowNav(v => !v); }
-  function triggerMusic()   { setMusicData({ track: 'Midnight Rain', artist: 'Taylor Swift' }); setShowMusic(v => !v); }
+  async function triggerMusic() {
+    if (showMusic) { setShowMusic(false); return; }
+    try {
+      const data = await getCurrentlyPlaying();
+      if (data?.item) {
+        setMusicData({ track: data.item.name, artist: data.item.artists.map(a => a.name).join(', '), albumArt: data.item.album.images[0]?.url, source: 'spotify' });
+      } else {
+        setMusicData({ track: 'Nothing playing', artist: 'Open Spotify to start', source: 'spotify' });
+      }
+    } catch { setMusicData({ track: 'Spotify', artist: 'Not connected', source: 'spotify' }); }
+    setShowMusic(true);
+  }
   function triggerNotif()   { setNotifData({ app: 'WhatsApp', sender: 'Priya', preview: 'Are you coming tonight?' }); setShowNotif(true); setTimeout(() => setShowNotif(false), 4500); }
   function triggerWeather() { setShowWeather(v => !v); }
+  // Poll Spotify every 30s while music is showing
+  useEffect(() => {
+    if (!showMusic) return;
+    const poll = async () => {
+      try {
+        const data = await getCurrentlyPlaying();
+        if (data?.item) {
+          setMusicData(prev => {
+            if (prev?.track === data.item.name) return prev;
+            return { track: data.item.name, artist: data.item.artists.map(a => a.name).join(', '), albumArt: data.item.album.images[0]?.url, source: 'spotify' };
+          });
+        }
+      } catch {}
+    };
+    const id = setInterval(poll, 30000);
+    return () => clearInterval(id);
+  }, [showMusic]);
+
   function triggerCall()    { setCallData({ caller: 'Priya', app: 'WhatsApp' }); setShowCall(true); }
 
   function dismissAnswer() {
@@ -943,7 +982,9 @@ export default function GlassHUD() {
           {showMusic && musicData && hudMode === 'idle' && (
             <div className="music-player-full">
               <div className="mpf-art">
-                <AppIcon app={musicData.source || 'spotify'} size={52} />
+                {musicData.albumArt
+                  ? <img src={musicData.albumArt} alt="album" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:16}} />
+                  : <AppIcon app={musicData.source || 'spotify'} size={52} />}
               </div>
               <div className="mpf-track">{musicData.track || 'Now Playing'}</div>
               <div className="mpf-artist">{musicData.artist || ''}</div>
@@ -1041,40 +1082,6 @@ export default function GlassHUD() {
       </div>
 
       {/* Control bar */}
-      <div className={`hud-controls${controlsVisible ? '' : ' hidden'}`}>
-        <button className={`ctrl-btn${voiceActive ? ' active' : ''}`} onClick={voiceActive ? stopVoice : startVoiceQuery}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-            <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3"/>
-          </svg>
-          {voiceActive ? 'Stop' : 'Ask ARVO'}
-        </button>
-        <div className="ctrl-divider" />
-        <button className="ctrl-btn" onClick={triggerNav} title="N">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 20l-5.5 1.5L5 16 16 5l3 3L8 19"/></svg>
-          {showNav ? 'Nav off' : 'Nav'}
-        </button>
-        <button className="ctrl-btn" onClick={triggerMusic} title="M">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>
-          {showMusic ? 'Music off' : 'Music'}
-        </button>
-        <button className="ctrl-btn" onClick={triggerWeather} title="W">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
-          Weather
-        </button>
-        <button className="ctrl-btn" onClick={triggerNotif}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          Notify
-        </button>
-        <button className="ctrl-btn" onClick={triggerCall} title="C">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 15.77 15.77 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-          Call
-        </button>
-      </div>
-
-      <div className={`key-hints${controlsVisible ? '' : ' hidden'}`}>
-        <span>N nav</span><span>M music</span><span>W weather</span><span>C call</span><span>Esc dismiss</span>
-      </div>
     </div>
   );
 }
