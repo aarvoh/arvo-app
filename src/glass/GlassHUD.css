@@ -510,6 +510,7 @@ html, body, #root {
 .app-grid-slides {
   width: 100%; overflow: hidden;
   cursor: grab; user-select: none; -webkit-user-select: none;
+  pointer-events: auto;
 }
 .app-grid-slides:active { cursor: grabbing; }
 .app-grid-track { display: flex; }
