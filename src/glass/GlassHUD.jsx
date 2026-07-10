@@ -236,7 +236,8 @@ export default function GlassHUD() {
   const [callData,     setCallData]     = useState(null);  const [showCall,    setShowCall]    = useState(false);
   const [showWeather,  setShowWeather]  = useState(false);
   const [gridPage,     setGridPage]     = useState(0);
-  const gridTouchX = useRef(null);
+  const [gridOffset,   setGridOffset]   = useState(0);
+  const gridDragX = useRef(null);
   const showCallRef = useRef(false);
   useEffect(() => { showCallRef.current = showCall; }, [showCall]);
 
@@ -486,6 +487,25 @@ export default function GlassHUD() {
     const t = setTimeout(startWakeListener, 1200);
     return () => clearTimeout(t);
   }, [startWakeListener]);
+
+  // ── grid drag (mouse + touch) ──
+  function onGridDragStart(clientX) { gridDragX.current = clientX; }
+  function onGridDragMove(clientX) {
+    if (gridDragX.current === null) return;
+    const dx = clientX - gridDragX.current;
+    const clamped = gridPage === 0 ? Math.max(dx, -300)
+                  : gridPage === PAGE_TILES.length - 1 ? Math.min(dx, 300)
+                  : dx;
+    setGridOffset(clamped);
+  }
+  function onGridDragEnd(clientX) {
+    if (gridDragX.current === null) return;
+    const dx = clientX - gridDragX.current;
+    if (dx < -50) setGridPage(p => Math.min(p + 1, PAGE_TILES.length - 1));
+    else if (dx > 50) setGridPage(p => Math.max(p - 1, 0));
+    gridDragX.current = null;
+    setGridOffset(0);
+  }
 
   // ── manual triggers ──
   function triggerNav()     { setNavData({ instruction: 'Turn right', street: 'MG Road', distance: '200 m' }); setShowNav(v => !v); }
@@ -946,30 +966,38 @@ export default function GlassHUD() {
 
           {/* App Home Grid */}
           {hudMode === 'idle' && !showMusic && !showWeather && (
-            <div
-              className="app-home-grid"
-              onTouchStart={e => { gridTouchX.current = e.touches[0].clientX; }}
-              onTouchEnd={e => {
-                if (gridTouchX.current === null) return;
-                const dx = e.changedTouches[0].clientX - gridTouchX.current;
-                if (dx < -40) setGridPage(p => Math.min(p + 1, PAGE_TILES.length - 1));
-                else if (dx > 40) setGridPage(p => Math.max(p - 1, 0));
-                gridTouchX.current = null;
-              }}
-            >
+            <div className="app-home-grid">
               <div className="app-grid-dots">
                 {PAGE_TILES.map((_, i) => (
                   <span key={i} className={`grid-dot${gridPage === i ? ' active' : ''}`}
                     onClick={() => setGridPage(i)} style={{ pointerEvents: 'auto', cursor: 'pointer' }} />
                 ))}
               </div>
-              <div className="app-grid-tiles">
-                {PAGE_TILES[gridPage].map(({ name, bg }) => (
-                  <div key={name} className="app-tile" style={{ background: bg }}>
-                    <div className="app-tile-icon"><AppIcon app={name} size={22} /></div>
-                    <span className="app-tile-name">{name}</span>
-                  </div>
-                ))}
+              <div className="app-grid-slides"
+                onMouseDown={e => { e.preventDefault(); onGridDragStart(e.clientX); }}
+                onMouseMove={e => onGridDragMove(e.clientX)}
+                onMouseUp={e => onGridDragEnd(e.clientX)}
+                onMouseLeave={e => onGridDragEnd(e.clientX)}
+                onTouchStart={e => onGridDragStart(e.touches[0].clientX)}
+                onTouchMove={e => { e.preventDefault(); onGridDragMove(e.touches[0].clientX); }}
+                onTouchEnd={e => onGridDragEnd(e.changedTouches[0].clientX)}
+              >
+                <div className="app-grid-track" style={{
+                  width: `${PAGE_TILES.length * 100}%`,
+                  transform: `translateX(calc(-${gridPage * (100 / PAGE_TILES.length)}% + ${gridOffset}px))`,
+                  transition: gridOffset !== 0 ? 'none' : 'transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)',
+                }}>
+                  {PAGE_TILES.map((tiles, pageIdx) => (
+                    <div key={pageIdx} className="app-grid-page" style={{ width: `${100 / PAGE_TILES.length}%` }}>
+                      {tiles.map(({ name, bg }) => (
+                        <div key={name} className="app-tile" style={{ background: bg }}>
+                          <div className="app-tile-icon"><AppIcon app={name} size={22} /></div>
+                          <span className="app-tile-name">{name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="ask-arvo-bar" onClick={startVoiceQuery} style={{ pointerEvents: 'auto', cursor: 'pointer' }}>
                 <div className="ask-arvo-orb" />

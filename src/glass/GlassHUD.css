@@ -506,8 +506,15 @@ html, body, #root {
   transition: background 0.2s ease;
 }
 .grid-dot.active { background: rgba(255,255,255,0.75); }
-.app-grid-tiles {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;
+.app-grid-slides {
+  width: 100%; overflow: hidden;
+  cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.app-grid-slides:active { cursor: grabbing; }
+.app-grid-track { display: flex; }
+.app-grid-page {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  flex-shrink: 0;
 }
 .app-tile {
   display: flex; align-items: center; gap: 10px;
