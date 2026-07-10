@@ -866,3 +866,85 @@ body.ios-glass .ctrl-btn    { padding: 14px 28px; font-size: 16px; }
   background: linear-gradient(90deg, #25D366, #60A5FA, #A855F7, #EC4899, #F97316);
   z-index: -1;
 }
+
+/* ─── SETTINGS PANEL VIEW ───────────────────────────────────────── */
+.cp-settings-panel { display: flex; flex-direction: column; gap: 6px; }
+
+.cps-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
+}
+.cps-back {
+  background: rgba(255,255,255,0.08); border: none; border-radius: 8px;
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.7); cursor: pointer;
+}
+.cps-title {
+  font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85);
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.cps-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 9px 12px; gap: 10px;
+}
+.cps-row-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cps-icon {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.cps-label {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.85);
+  font-family: 'Inter', sans-serif;
+}
+.cps-sub {
+  font-size: 9.5px; color: rgba(255,255,255,0.35);
+  font-family: 'Inter', sans-serif; margin-top: 1px;
+}
+
+.cps-action-btn {
+  border: none; border-radius: 8px; padding: 5px 11px;
+  font-size: 10px; font-weight: 600; font-family: 'Inter', sans-serif;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+
+/* Brightness slider */
+.cps-slider {
+  width: 90px; height: 4px; flex-shrink: 0;
+  -webkit-appearance: none; appearance: none;
+  background: rgba(255,255,255,0.15); border-radius: 2px; outline: none;
+}
+.cps-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: #FBBF24; cursor: pointer;
+}
+
+/* Toggle switch */
+.cps-toggle {
+  width: 36px; height: 20px; border-radius: 10px;
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.1);
+  position: relative; cursor: pointer; flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+.cps-toggle.on { background: rgba(52,211,153,0.4); border-color: rgba(52,211,153,0.5); }
+.cps-toggle-thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(255,255,255,0.6);
+  transition: left 0.2s ease, background 0.2s ease;
+}
+.cps-toggle.on .cps-toggle-thumb { left: 18px; background: #34D399; }
+
+/* About row */
+.cps-about {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 4px;
+}
+.cps-about-name {
+  font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4);
+  font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.08em;
+}
+.cps-about-ver {
+  font-size: 9px; color: rgba(255,255,255,0.2);
+  font-family: 'JetBrains Mono', monospace;
+}

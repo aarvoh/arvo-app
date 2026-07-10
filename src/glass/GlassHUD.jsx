@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './GlassHUD.css';
 import glassChannel from '../lib/glassChannel';
 import useBrainSocket from '../lib/useBrainSocket';
-import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext, previous as spotifyPrev, searchAndPlay, getCurrentlyPlaying } from '../lib/spotify';
+import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext, previous as spotifyPrev, searchAndPlay, getCurrentlyPlaying, isConnected as spotifyIsConnected, initiateLogin as spotifyLogin, disconnect as spotifyDisconnect } from '../lib/spotify';
 
 // ─── app branding ─────────────────────────────────────────────────
 function getAppBrand(app = '') {
@@ -238,12 +238,17 @@ export default function GlassHUD() {
   const [gridPage,     setGridPage]     = useState(0);
   const [gridOffset,   setGridOffset]   = useState(0);
   const [showCP,       setShowCP]       = useState(false);
+  const [cpView,       setCpView]       = useState('main');
   const [cpMuted,      setCpMuted]      = useState(false);
   const [cpDND,        setCpDND]        = useState(false);
   const [battery,      setBattery]      = useState(null);
+  const [brightness,   setBrightness]   = useState(100);
+  const [spotifyConn,  setSpotifyConn]  = useState(() => spotifyIsConnected());
   const cpDragY   = useRef(null);
   const cpDNDRef  = useRef(false);
   useEffect(() => { cpDNDRef.current = cpDND; }, [cpDND]);
+  // close settings view when CP is closed
+  useEffect(() => { if (!showCP) setCpView('main'); }, [showCP]);
   const gridDragX  = useRef(null);
   const gridPageRef = useRef(0);
   const slidesRef   = useRef(null);
@@ -853,7 +858,7 @@ export default function GlassHUD() {
   const isAnswer = hudMode === 'answer' && answer;
 
   return (
-    <div className="glass-shell">
+    <div className="glass-shell" style={{ filter: brightness !== 100 ? `brightness(${brightness}%)` : undefined }}>
       <video ref={videoRef} autoPlay playsInline muted className={`glass-camera${camReady ? ' ready' : ''}`} />
       {!camReady && <div className="glass-no-camera" />}
       <div className="glass-vignette" />
@@ -1232,13 +1237,105 @@ export default function GlassHUD() {
           </div>
         </div>
 
-        {/* Settings button */}
-        <div className="cp-settings-btn" style={{ pointerEvents: 'auto' }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" style={{width:14,height:14,flexShrink:0}}>
-            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          <span>Settings</span>
-        </div>
+        {/* Settings button (main view) */}
+        {cpView === 'main' && (
+          <div className="cp-settings-btn" onClick={() => setCpView('settings')} style={{ pointerEvents: 'auto' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" style={{width:14,height:14,flexShrink:0}}>
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span>Settings</span>
+          </div>
+        )}
+
+        {/* Settings panel view */}
+        {cpView === 'settings' && (
+          <div className="cp-settings-panel">
+            {/* Header */}
+            <div className="cps-header">
+              <button className="cps-back" onClick={() => setCpView('main')} style={{ pointerEvents: 'auto' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{width:14,height:14}}><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <span className="cps-title">Settings</span>
+            </div>
+
+            {/* Spotify */}
+            <div className="cps-row">
+              <div className="cps-row-left">
+                <div className="cps-icon" style={{ background: 'rgba(29,185,84,0.15)' }}>
+                  <AppIcon app="spotify" size={14} />
+                </div>
+                <div>
+                  <div className="cps-label">Spotify</div>
+                  <div className="cps-sub" style={{ color: spotifyConn ? '#1DB954' : 'rgba(255,255,255,0.3)' }}>
+                    {spotifyConn ? 'Connected' : 'Not connected'}
+                  </div>
+                </div>
+              </div>
+              <button className="cps-action-btn" style={{ pointerEvents: 'auto', background: spotifyConn ? 'rgba(248,113,113,0.15)' : 'rgba(29,185,84,0.15)', color: spotifyConn ? '#F87171' : '#1DB954' }}
+                onClick={() => { if (spotifyConn) { spotifyDisconnect(); setSpotifyConn(false); } else { spotifyLogin(); } }}>
+                {spotifyConn ? 'Disconnect' : 'Connect'}
+              </button>
+            </div>
+
+            {/* Brightness */}
+            <div className="cps-row">
+              <div className="cps-row-left">
+                <div className="cps-icon" style={{ background: 'rgba(251,191,36,0.12)' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" style={{width:14,height:14}}>
+                    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="cps-label">Brightness</div>
+                  <div className="cps-sub">{brightness}%</div>
+                </div>
+              </div>
+              <input type="range" min="30" max="100" value={brightness} className="cps-slider"
+                onChange={e => setBrightness(Number(e.target.value))}
+                style={{ pointerEvents: 'auto' }} />
+            </div>
+
+            {/* Wake word */}
+            <div className="cps-row">
+              <div className="cps-row-left">
+                <div className="cps-icon" style={{ background: 'rgba(96,165,250,0.12)' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2" strokeLinecap="round" style={{width:14,height:14}}>
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="cps-label">Wake word</div>
+                  <div className="cps-sub">"hey arvo"</div>
+                </div>
+              </div>
+              <div className={`cps-toggle${wakeListening ? ' on' : ''}`} onClick={() => setWakeListening(w => !w)} style={{ pointerEvents: 'auto' }}>
+                <div className="cps-toggle-thumb" />
+              </div>
+            </div>
+
+            {/* Camera */}
+            <div className="cps-row">
+              <div className="cps-row-left">
+                <div className="cps-icon" style={{ background: 'rgba(249,115,22,0.12)' }}>
+                  <AppIcon app="camera" size={14} />
+                </div>
+                <div>
+                  <div className="cps-label">Camera</div>
+                  <div className="cps-sub" style={{ color: camReady ? '#34D399' : 'rgba(255,255,255,0.3)' }}>{camReady ? 'Active' : 'Off'}</div>
+                </div>
+              </div>
+              <div className={`cps-toggle${camReady ? ' on' : ''}`} style={{ pointerEvents: 'auto', opacity: 0.5 }}>
+                <div className="cps-toggle-thumb" />
+              </div>
+            </div>
+
+            {/* About */}
+            <div className="cps-about">
+              <span className="cps-about-name">ARVO</span>
+              <span className="cps-about-ver">v1.0 · claude-haiku-4-5</span>
+            </div>
+          </div>
+        )}
       </div>
 
     </div>
