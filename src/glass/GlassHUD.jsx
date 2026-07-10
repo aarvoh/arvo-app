@@ -423,6 +423,12 @@ export default function GlassHUD() {
     setInSession(false);
   }
 
+  function backToWake() {
+    endSession();
+    setHudMode('idle');
+    setTimeout(startWakeListener, 400);
+  }
+
   // ── incoming RenderCards from brain ──
   useEffect(() => {
     if (!lastCard) return;
@@ -725,12 +731,56 @@ export default function GlassHUD() {
         return;
       }
 
+      // ── APP VOICE COMMANDS ──
+      if (/open spotify|play spotify|show spotify|play music|open music|show music/i.test(cmd)) {
+        triggerMusic();
+        setHudMode('idle');
+        speakText('Opening Spotify', backToWake);
+        return;
+      }
+      if (/close spotify|stop music|close music|hide music/i.test(cmd)) {
+        setShowMusic(false);
+        setHudMode('idle');
+        speakText('Done', backToWake);
+        return;
+      }
+      if (/open maps|show maps|navigate|directions|start navigation/i.test(cmd)) {
+        triggerNav();
+        setHudMode('idle');
+        speakText('Showing maps', backToWake);
+        return;
+      }
+      if (/open control(?: panel| center)?|settings|control panel/i.test(cmd)) {
+        setShowCP(true);
+        setHudMode('idle');
+        speakText('Opening settings', backToWake);
+        return;
+      }
+      if (/mute( mic)?|silence mic/i.test(cmd)) {
+        setCpMuted(true);
+        setHudMode('idle');
+        speakText('Mic muted', backToWake);
+        return;
+      }
+      if (/unmute( mic)?|enable mic/i.test(cmd)) {
+        setCpMuted(false);
+        setHudMode('idle');
+        speakText('Mic unmuted', backToWake);
+        return;
+      }
+      if (/do not disturb|dnd|turn on dnd/i.test(cmd)) {
+        setCpDND(true);
+        setHudMode('idle');
+        speakText('Do not disturb on', backToWake);
+        return;
+      }
+
       // ── TIME — answered from device clock ──
       if (/what.*time|current time|time is it|what's the time/i.test(text)) {
         const t = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
         const ans = `It's ${t}`;
         setAnswer(ans); setHudMode('answer'); setAnswerExiting(false); setShowScan(false);
-        speakText(ans, startSession);
+        speakText(ans, backToWake);
         return;
       }
 
@@ -744,12 +794,12 @@ export default function GlassHUD() {
           const ans = await askClaude(text, frame);
           setShowScan(false);
           setAnswer(ans); setHudMode('answer'); setAnswerExiting(false);
-          speakText(ans, startSession);
+          speakText(ans, backToWake);
         } catch {
           setShowScan(false);
           setAnswer('Could not see — please try again.');
           setHudMode('answer');
-          startSession();
+          backToWake();
         }
         return;
       }
@@ -768,7 +818,7 @@ export default function GlassHUD() {
           const ans = await askClaude(text, frame);
           setAnswer(ans); setHudMode('answer'); setAnswerExiting(false); setShowScan(false);
           setIsSpeaking(true);
-          speakText(ans, () => { setIsSpeaking(false); startSession(); });
+          speakText(ans, () => { setIsSpeaking(false); backToWake(); });
           outSeqRef.current += 1;
           glassChannel?.postMessage({ type: 'glass_query', seq_id: outSeqRef.current, id: `g${Date.now()}`, text, answer: ans, hasImage: !!frame });
         } catch {
@@ -787,15 +837,9 @@ export default function GlassHUD() {
         setTimeout(() => startVoiceQuery(noSpeechRetries - 1), 150);
         return;
       }
+      // retries exhausted or other error — stop listening, return to wake word
       setVoiceActive(false); voiceActiveRef.current = false;
-      if (inSessionRef.current) {
-        setTimeout(() => {
-          if (inSessionRef.current && !voiceActiveRef.current) startVoiceQuery();
-        }, 600);
-      } else {
-        setHudMode('idle');
-        startWakeListener();
-      }
+      backToWake();
     };
 
     queryRecogRef.current = recog;
@@ -1052,6 +1096,9 @@ export default function GlassHUD() {
           {/* Full Music Player */}
           {showMusic && musicData && hudMode === 'idle' && (
             <div className="music-player-full">
+              <button className="mpf-close" onClick={() => setShowMusic(false)} style={{ pointerEvents: 'auto' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{width:14,height:14}}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
               <div className="mpf-art">
                 {musicData.albumArt
                   ? <img src={musicData.albumArt} alt="album" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:16}} />
