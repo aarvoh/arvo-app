@@ -80,6 +80,11 @@ function AppIcon({ app = '', size = 16 }) {
       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4" fill="rgba(0,0,0,0.4)"/>
     </svg>
   );
+  if (n.includes('fitness') || n.includes('health') || n.includes('heart')) return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{...s, color:'#EF4444'}}>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+    </svg>
+  );
   // default
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{...s, color:'rgba(255,255,255,0.55)'}}>
@@ -104,7 +109,7 @@ const PAGE_TILES = [
     { name: 'Telegram',  bg: '#031828' },
     { name: 'Snapchat',  bg: '#181800' },
     { name: 'Gmail',     bg: 'linear-gradient(135deg,#1e0603 0%,#2a0804 100%)' },
-    { name: 'Twitter',   bg: '#05080f' },
+    { name: 'Fitness',   bg: 'linear-gradient(135deg,#1a0020 0%,#1a0a00 100%)' },
   ],
 ];
 
@@ -130,13 +135,24 @@ function useLiveClock() {
   return t;
 }
 
-function useHeartRate() {
-  const [bpm, setBpm] = useState(72);
-  useEffect(() => {
-    const id = setInterval(() => setBpm(v => Math.max(62, Math.min(88, v + ((Math.random() * 4 - 2) | 0)))), 8000);
-    return () => clearInterval(id);
-  }, []);
-  return bpm;
+// BPM is now supplied by the phone's fitness tracker via BroadcastChannel
+const FITNESS_ZONES = [
+  { z: 1, name: 'Warm Up',   color: '#60A5FA', minPct: 50, maxPct: 60 },
+  { z: 2, name: 'Fat Burn',  color: '#34D399', minPct: 60, maxPct: 70 },
+  { z: 3, name: 'Cardio',    color: '#FBBF24', minPct: 70, maxPct: 80 },
+  { z: 4, name: 'Anaerobic', color: '#F97316', minPct: 80, maxPct: 90 },
+  { z: 5, name: 'Peak',      color: '#EF4444', minPct: 90, maxPct: 110 },
+];
+const FIT_MAX_HR = 185;
+
+function getFitnessZone(bpm) {
+  const pct = (bpm / FIT_MAX_HR) * 100;
+  return FITNESS_ZONES.find(z => pct >= z.minPct && pct < z.maxPct) || FITNESS_ZONES[0];
+}
+
+function fmtDuration(s) {
+  const m = Math.floor(s / 60); const sec = s % 60;
+  return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
 function captureFrame(videoEl) {
@@ -195,7 +211,6 @@ function nextSeq() { return ++_globalSeq; }
 // ─── component ────────────────────────────────────────────────────
 export default function GlassHUD() {
   const time = useLiveClock();
-  const bpm  = useHeartRate();
 
   const { send: sendToBrain, connState: brainConn, lastCard } = useBrainSocket();
   const videoRef = useRef(null);
@@ -239,11 +254,30 @@ export default function GlassHUD() {
   const [gridOffset,   setGridOffset]   = useState(0);
   const [showCP,       setShowCP]       = useState(false);
   const [cpView,       setCpView]       = useState('main');
-  const [cpMuted,      setCpMuted]      = useState(false);
-  const [cpDND,        setCpDND]        = useState(false);
   const [battery,      setBattery]      = useState(null);
-  const [brightness,   setBrightness]   = useState(100);
   const [spotifyConn,  setSpotifyConn]  = useState(() => spotifyIsConnected());
+
+  // ── settings persistence ──
+  const [brightness, setBrightness] = useState(() => Number(localStorage.getItem('arvo_brightness') || 100));
+  const [cpMuted,    setCpMuted]    = useState(() => localStorage.getItem('arvo_muted') === 'true');
+  const [cpDND,      setCpDND]      = useState(() => localStorage.getItem('arvo_dnd') === 'true');
+  useEffect(() => { localStorage.setItem('arvo_brightness', brightness); }, [brightness]);
+  useEffect(() => { localStorage.setItem('arvo_muted', cpMuted); }, [cpMuted]);
+  useEffect(() => { localStorage.setItem('arvo_dnd', cpDND); }, [cpDND]);
+
+  // ── live captions ──
+  const [captionsActive,  setCaptionsActive]  = useState(false);
+  const [captionLines,    setCaptionLines]    = useState([]);
+  const [captionInterim,  setCaptionInterim]  = useState('');
+  const captionRecogRef  = useRef(null);
+  const captionActiveRef = useRef(false);
+
+  // ── fitness ──
+  const [fitnessActive,  setFitnessActive]  = useState(false);
+  const [showFitness,    setShowFitness]    = useState(false);
+  const [fitnessData,    setFitnessData]    = useState({ bpm: 0, zone: 1, duration: 0, calories: 0, steps: 0, distance: 0, workoutType: 'run' });
+  const [fitBpmHistory,  setFitBpmHistory]  = useState([]);
+
   const cpDragY   = useRef(null);
   const cpDNDRef  = useRef(false);
   useEffect(() => { cpDNDRef.current = cpDND; }, [cpDND]);
@@ -391,6 +425,22 @@ export default function GlassHUD() {
           speakText(`${msg.app} from ${msg.sender}. ${msg.preview}`);
           setTimeout(() => setShowNotif(false), 5000);
           break;
+        case 'fitness_start':
+          setFitnessActive(true);
+          setShowFitness(true);
+          setFitBpmHistory([]);
+          setFitnessData(d => ({ ...d, workoutType: msg.workoutType || 'run', bpm: 0, duration: 0, calories: 0, steps: 0, distance: 0 }));
+          break;
+        case 'fitness_update':
+          setFitnessData({ bpm: msg.bpm || 0, zone: msg.zone || 1, duration: msg.duration || 0, calories: msg.calories || 0, steps: msg.steps || 0, distance: msg.distance || 0, workoutType: msg.workoutType || 'run' });
+          if (msg.bpm) setFitBpmHistory(h => [...h.slice(-59), msg.bpm]);
+          setFitnessActive(true);
+          setShowFitness(true);
+          break;
+        case 'fitness_stop':
+          setFitnessActive(false);
+          setTimeout(() => setShowFitness(false), 4000);
+          break;
         default: break;
       }
     }
@@ -427,6 +477,58 @@ export default function GlassHUD() {
     endSession();
     setHudMode('idle');
     setTimeout(startWakeListener, 400);
+  }
+
+  // ── live captions ──────────────────────────────────────────────────
+  function startCaptions() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || captionActiveRef.current) return;
+    captionActiveRef.current = true;
+    setCaptionsActive(true);
+    setCaptionLines([]);
+    setCaptionInterim('');
+
+    function launch() {
+      if (!captionActiveRef.current) return;
+      const r = new SR();
+      r.continuous = true; r.interimResults = true; r.lang = 'en-US'; r.maxAlternatives = 1;
+
+      r.onresult = (e) => {
+        let final = '', interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+          else interim += e.results[i][0].transcript;
+        }
+        if (final.trim()) {
+          setCaptionLines(prev => [...prev.slice(-2), final.trim()]);
+          setCaptionInterim('');
+        }
+        if (interim) setCaptionInterim(interim);
+      };
+
+      r.onend = () => { if (captionActiveRef.current) setTimeout(launch, 150); };
+      r.onerror = (ev) => {
+        if (ev.error !== 'aborted' && captionActiveRef.current) setTimeout(launch, 600);
+      };
+
+      captionRecogRef.current = r;
+      try { r.start(); } catch {}
+    }
+    launch();
+  }
+
+  function stopCaptions() {
+    captionActiveRef.current = false;
+    setCaptionsActive(false);
+    captionRecogRef.current?.abort();
+    captionRecogRef.current = null;
+    setCaptionLines([]);
+    setCaptionInterim('');
+  }
+
+  function toggleCaptions() {
+    if (captionActiveRef.current) stopCaptions();
+    else startCaptions();
   }
 
   // ── incoming RenderCards from brain ──
@@ -775,6 +877,58 @@ export default function GlassHUD() {
         return;
       }
 
+      // ── FITNESS COMMANDS ──
+      // ── CAPTIONS ──
+      if (/captions? on|start captions?|turn on captions?|enable captions?|live captions?/i.test(cmd)) {
+        startCaptions();
+        setHudMode('idle');
+        speakText('Live captions on', backToWake);
+        return;
+      }
+      if (/captions? off|stop captions?|turn off captions?|disable captions?/i.test(cmd)) {
+        stopCaptions();
+        setHudMode('idle');
+        speakText('Captions off', backToWake);
+        return;
+      }
+
+      if (/open fitness|show fitness|fitness|workout/i.test(cmd) && !/start|stop|end/.test(cmd)) {
+        setShowFitness(true);
+        setHudMode('idle');
+        speakText('Showing fitness', backToWake);
+        return;
+      }
+      if (/start (a |my )?(workout|run|walk|cycle|hiit|yoga|strength)|begin workout|start running|go for a run/i.test(cmd)) {
+        const wt = /run/i.test(cmd) ? 'run' : /walk/i.test(cmd) ? 'walk' : /cycle/i.test(cmd) ? 'cycle' : /hiit/i.test(cmd) ? 'hiit' : /yoga/i.test(cmd) ? 'yoga' : /strength/i.test(cmd) ? 'strength' : 'run';
+        outSeqRef.current += 1;
+        glassChannel?.postMessage({ type: 'fitness_command', cmd: 'start', workoutType: wt, seq_id: outSeqRef.current });
+        setHudMode('idle');
+        speakText(`Starting ${wt}. Tap Fitness on your phone if the glass doesn't auto-connect.`, backToWake);
+        return;
+      }
+      if (/stop workout|end workout|finish workout|stop run|done working out/i.test(cmd)) {
+        outSeqRef.current += 1;
+        glassChannel?.postMessage({ type: 'fitness_command', cmd: 'stop', seq_id: outSeqRef.current });
+        setHudMode('idle');
+        speakText('Stopping workout.', backToWake);
+        return;
+      }
+      if (/heart rate|my bpm|what.*bpm|how.*heart/i.test(cmd)) {
+        const b = fitnessData.bpm;
+        const ans = b > 0 ? `Your heart rate is ${b} BPM — ${getFitnessZone(b).name} zone.` : 'No heart rate reading available. Start a workout on your phone.';
+        setAnswer(ans); setHudMode('answer'); setAnswerExiting(false);
+        speakText(ans, backToWake);
+        return;
+      }
+      if (/how.*doing|my stats|workout stats|how.*workout/i.test(cmd) && fitnessActive) {
+        const d = fitnessData;
+        const z = getFitnessZone(d.bpm);
+        const ans = `You're in ${z.name} zone at ${d.bpm} BPM. ${d.calories} calories burned, ${d.steps} steps, ${fmtDuration(d.duration)} elapsed.`;
+        setAnswer(ans); setHudMode('answer'); setAnswerExiting(false);
+        speakText(ans, backToWake);
+        return;
+      }
+
       // ── TIME — answered from device clock ──
       if (/what.*time|current time|time is it|what's the time/i.test(text)) {
         const t = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -986,13 +1140,16 @@ export default function GlassHUD() {
           <div className="hud-brand">ARVO <span className="dot-live" /></div>
           <div className="hud-time">{time}</div>
           <div className="hud-vitals">
-            {bpm > 0 && (
-              <div className="hud-stat heart">
+            {fitnessData.bpm > 0 && (
+              <div className="hud-stat heart" style={{ color: getFitnessZone(fitnessData.bpm).color }}>
                 <svg viewBox="0 0 24 24" fill="currentColor" style={{ width:10, height:10 }}>
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                 </svg>
-                {bpm}
+                {fitnessData.bpm}
               </div>
+            )}
+            {captionsActive && (
+              <div className="hud-stat" style={{ color: '#60A5FA', fontSize: 9, fontWeight: 700 }}>CC</div>
             )}
             {weather && <div className="hud-stat weather-pill">{wIcon} {Math.round(weather.temperature)}°</div>}
             <div className={`hud-stat${phoneConnected ? ' ok' : ' dim'}`}>
@@ -1077,7 +1234,13 @@ export default function GlassHUD() {
                   {PAGE_TILES.map((tiles, pageIdx) => (
                     <div key={pageIdx} className="app-grid-page" style={{ width: `${100 / PAGE_TILES.length}%` }}>
                       {tiles.map(({ name, bg }) => (
-                        <div key={name} className="app-tile" style={{ background: bg }}>
+                        <div key={name} className="app-tile" style={{ background: bg }}
+                          onClick={() => {
+                            if (name === 'Fitness') { setShowFitness(true); }
+                            else if (name === 'Spotify') { triggerMusic(); }
+                            else if (name === 'Maps') { triggerNav(); }
+                          }}
+                        >
                           <div className="app-tile-icon"><AppIcon app={name} size={22} /></div>
                           <span className="app-tile-name">{name}</span>
                         </div>
@@ -1199,6 +1362,103 @@ export default function GlassHUD() {
         {wakeTranscript ? wakeTranscript : 'hey arvo'}
       </div>
 
+      {/* ── LIVE CAPTIONS OVERLAY ── */}
+      {captionsActive && (captionLines.length > 0 || captionInterim) && (
+        <div className="captions-overlay">
+          {captionLines.map((line, i) => (
+            <div key={i} className={`caption-line${i < captionLines.length - 1 ? ' caption-old' : ''}`}>
+              {line}
+            </div>
+          ))}
+          {captionInterim && (
+            <div className="caption-line caption-interim">{captionInterim}</div>
+          )}
+        </div>
+      )}
+      {captionsActive && captionLines.length === 0 && !captionInterim && (
+        <div className="captions-idle">
+          <span className="captions-idle-dot" />
+          Listening for speech…
+        </div>
+      )}
+
+      {/* ── FITNESS HUD OVERLAY ── */}
+      {showFitness && (() => {
+        const d   = fitnessData;
+        const zone = d.bpm > 0 ? getFitnessZone(d.bpm) : FITNESS_ZONES[0];
+        const WTYPE_ICONS = { run:'🏃', walk:'🚶', cycle:'🚴', hiit:'⚡', yoga:'🧘', strength:'💪' };
+        const icon = WTYPE_ICONS[d.workoutType] || '🏃';
+        return (
+          <div className={`fit-hud${fitnessActive ? '' : ' fit-hud-ending'}`}>
+            {/* top bar */}
+            <div className="fit-top">
+              <div className="fit-badge" style={{ background: `${zone.color}22`, border: `1px solid ${zone.color}44`, color: zone.color }}>
+                {icon} {(d.workoutType || 'workout').toUpperCase()}
+              </div>
+              <div className="fit-timer">{fmtDuration(d.duration)}</div>
+              <button className="fit-close-btn" onClick={() => setShowFitness(false)} style={{ pointerEvents: 'auto' }}>✕</button>
+            </div>
+
+            {/* zone bar */}
+            <div className="fit-zone-bar">
+              {FITNESS_ZONES.map(z => (
+                <div key={z.z} className="fit-zone-seg" style={{ background: z.color, opacity: zone.z === z.z ? 1 : 0.12, flex: 1 }} />
+              ))}
+            </div>
+            <div className="fit-zone-lbls">
+              {FITNESS_ZONES.map(z => (
+                <span key={z.z} style={{ flex:1, textAlign:'center', fontSize:8, color: zone.z === z.z ? z.color : 'rgba(255,255,255,0.2)', fontWeight: zone.z === z.z ? 700 : 400 }}>
+                  {z.name}
+                </span>
+              ))}
+            </div>
+
+            {/* BPM hero */}
+            <div className="fit-bpm-hero">
+              <div className="fit-bpm-num" style={{ color: zone.color, textShadow: `0 0 40px ${zone.color}66` }}>
+                {d.bpm > 0 ? d.bpm : '--'}
+              </div>
+              <div className="fit-bpm-unit">BPM</div>
+              <div className="fit-zone-name" style={{ color: zone.color }}>{zone.name} Zone</div>
+            </div>
+
+            {/* sparkline */}
+            <div className="fit-sparkline-wrap">
+              {fitBpmHistory.length > 0
+                ? fitBpmHistory.slice(-50).map((v, i) => {
+                    const z = getFitnessZone(v);
+                    const h = Math.max(4, Math.min(100, ((v - 40) / 160) * 100));
+                    return <div key={i} className="fit-spark-bar" style={{ height: `${h}%`, background: z.color }} />;
+                  })
+                : <div className="fit-no-signal">Place finger on phone camera for heart rate</div>
+              }
+            </div>
+
+            {/* stats */}
+            <div className="fit-stats-row">
+              <div className="fit-stat">
+                <div className="fit-stat-val">{d.calories}</div>
+                <div className="fit-stat-lbl">🔥 cal</div>
+              </div>
+              <div className="fit-stat-sep" />
+              <div className="fit-stat">
+                <div className="fit-stat-val">{d.steps.toLocaleString()}</div>
+                <div className="fit-stat-lbl">👟 steps</div>
+              </div>
+              <div className="fit-stat-sep" />
+              <div className="fit-stat">
+                <div className="fit-stat-val">{d.distance}</div>
+                <div className="fit-stat-lbl">📍 km</div>
+              </div>
+            </div>
+
+            {!fitnessActive && (
+              <div className="fit-summary-pill">Workout ended · great work!</div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ── CONTROL PANEL TRIGGER STRIP ── */}
       <div className="cp-trigger-strip"
         onMouseDown={e => { cpDragY.current = e.clientY; }}
@@ -1248,6 +1508,17 @@ export default function GlassHUD() {
             <span className="cp-tile-label" style={{maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
               {musicData?.track || 'Music'}
             </span>
+          </div>
+
+          {/* Captions */}
+          <div className={`cp-quick-tile${captionsActive ? ' active-blue' : ''}`} onClick={toggleCaptions} style={{ pointerEvents: 'auto' }}>
+            <div className="cp-tile-icon" style={{ background: captionsActive ? 'rgba(96,165,250,0.25)' : 'rgba(255,255,255,0.1)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke={captionsActive ? '#60A5FA' : 'rgba(255,255,255,0.8)'} strokeWidth="2" strokeLinecap="round" style={{width:14,height:14}}>
+                <rect x="2" y="5" width="20" height="14" rx="2"/>
+                <path d="M7 15h4M13 15h4M7 11h2M11 11h6"/>
+              </svg>
+            </div>
+            <span className="cp-tile-label" style={{ color: captionsActive ? '#60A5FA' : undefined }}>CC</span>
           </div>
         </div>
 

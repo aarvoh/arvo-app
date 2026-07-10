@@ -4,6 +4,7 @@ import Home from './components/Home';
 import Maps from './components/Maps';
 import Settings from './components/Settings';
 import GlassActivity from './components/GlassActivity';
+import FitnessTracker from './components/FitnessTracker';
 import { handleCallback, isConnected } from './lib/spotify';
 import glassChannel from './lib/glassChannel';
 
@@ -85,11 +86,18 @@ export default function App() {
           onSpotifyChange={setSpotifyConnected}
         />
       )}
+      {activeTab === 'fitness' && (
+        <FitnessTracker onClose={() => setActiveTab('home')} />
+      )}
 
       <div className="tab-bar">
         <button className={`tab-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" /></svg>
           <span>Home</span>
+        </button>
+        <button className={`tab-btn ${activeTab === 'fitness' ? 'active' : ''}`} onClick={() => setActiveTab('fitness')}>
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span>Fitness</span>
         </button>
         <button className={`tab-btn ${activeTab === 'maps' ? 'active' : ''}`} onClick={() => setActiveTab('maps')}>
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 20l-5.5 1.5L5 16 16 5l3 3L8 19" /></svg>

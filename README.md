@@ -1,16 +1,16 @@
-# sotto — companion app
+# ARVO — smart glasses companion app
 
-Phone companion app for the sotto smart glasses project (silent sEMG/EEG sub-vocal control glasses).
+Phone companion app for the ARVO smart glasses project. Phone = brain, glasses = display.
 
 ## What this is
 
-A React + Vite Progressive Web App (PWA). Three real screens (Home, Maps, Settings) plus a slide-down overlay (Glass activity) that merges command events and AI assistant queries into one timeline.
+A React + Vite Progressive Web App (PWA). Four screens (Home, Fitness, Maps, Settings) plus a slide-down Glass Activity overlay, a Glass HUD display at `/glass`, and a live AI brain at `/api/brain`.
 
 ## What's real vs. mocked
 
-**Real:** all UI, all interactions (drag-to-open panel, modals, toggles, sliders, typed composer), PWA manifest/installability config.
+**Real:** all UI and interactions, camera PPG heart-rate sensing, step counter via DeviceMotion, live captions via Web Speech API, wake-word voice commands, BroadcastChannel phone↔glass sync, Spotify OAuth, Claude AI brain integration, PWA installability, localStorage settings persistence.
 
-**Mocked (not yet wired to anything live):** no real Instagram/WhatsApp/Spotify/Apple Music/Maps API connections, no real Claude API call, no real BLE connection to glasses hardware. Service badges and activity entries are illustrative fixed data, not live state.
+**Mocked:** no real BLE connection to glasses hardware; WhatsApp/Instagram/Apple Music feed data is illustrative.
 
 ## Running it
 
@@ -18,16 +18,18 @@ See HOW_TO_RUN.md.
 
 ## Structure
 
-- `src/App.jsx` — root: tab routing, top drag handle for Glass activity
-- `src/components/Home.jsx` — connect status, service badges, hero
+- `src/App.jsx` — root: tab routing (Home / Fitness / Maps / Settings), drag handle
+- `src/components/Home.jsx` — connect status, quick actions, notification composer, send-to-glass
+- `src/components/FitnessTracker.jsx` — camera PPG BPM, step counter, calorie calc, workout tracking
 - `src/components/Maps.jsx` — idle search + active navigation
-- `src/components/Settings.jsx` — device, calibration, privacy/safety (locked confirm-before-post), glass behavior
-- `src/components/GlassActivity.jsx` — unified timeline, publish-confirm modal, save/delete-confirm modal, composer
-- `src/App.css` — design system (sage/brass/near-black palette, Space Grotesk/Inter/JetBrains Mono)
+- `src/components/Settings.jsx` — device, calibration, privacy/safety, glass behavior
+- `src/components/GlassActivity.jsx` — unified timeline, publish-confirm modal, composer
+- `src/glass/GlassHUD.jsx` — 600×600 glass display: HUD, control panel, fitness overlay, captions
+- `src/App.css` — phone design system
+- `src/glass/GlassHUD.css` — glass display styles
 
-## Design rules that are load-bearing, not cosmetic
+## Design rules
 
-- Every social post requires explicit confirmation. This is permanent — never softened by a "trusted after N posts" rule.
-- Declining to post ("Save, don't post") never deletes the file. It moves to a saved state in local storage; deletion is a separate, explicit second action.
-
-See the project handbook for full rationale and the rest of the product spec (hardware, firmware, differentiators).
+- Every social post requires explicit confirmation — never softened.
+- "Save, don't post" never deletes; deletion is a separate explicit action.
+- ANTHROPIC_API_KEY lives only in `.env` (gitignored) — never committed.

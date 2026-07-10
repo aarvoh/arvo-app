@@ -1,21 +1,37 @@
-# How to run sotto-app
+# How to run ARVO
 
-This is real React + Vite source code, not a finished website. To see it, three commands are required, run once on a computer with Node.js installed (not on the phone):
+This is real React + Vite source code. To run locally:
 
 1. Open this folder in a terminal
-2. Run: npm install
-3. Run: npm run dev
-4. Open the printed http://localhost:#### address in a browser
+2. `npm install`
+3. `npm run dev`
+4. Open the printed `http://localhost:####` address in a browser
 
-To view on your phone instead of a computer browser: run `npm run dev -- --host` in step 3, then visit the "Network" address it prints (something like http://192.168.x.x:5173) from your phone, as long as the phone is on the same WiFi as the computer.
+To test on your phone: run `npm run dev -- --host` and visit the Network address (e.g. `http://192.168.x.x:5173`) from a phone on the same WiFi.
 
-This project currently contains:
-- src/App.jsx — root component, tab routing (Home / Maps / Settings), top drag handle
-- src/components/Home.jsx — connect status screen
-- src/components/Maps.jsx — idle search + active navigation
-- src/components/Settings.jsx — device, calibration, privacy/safety, glass behavior
-- src/components/GlassActivity.jsx — the slide-down panel: unified command/assistant timeline, publish-confirm modal, save/delete-confirm modal, phone-side composer
-- src/App.css — all visual styling (sage/brass/near-black palette)
-- src/index.css — global resets and font utility classes
+## Screens
 
-Everything here is a frontend mockup with realistic interactions (state changes, fake timers standing in for network calls) — there is no real backend, no real Instagram/Maps/Spotify connection yet, and no Claude API call wired in. Those are separate, larger pieces of work.
+- `/` — Phone app (Home / Fitness / Maps / Settings tabs)
+- `/glass` — 600×600 Glass HUD display (open in a second browser window/tab)
+
+## Environment
+
+Copy `.env.example` to `.env` and fill in your keys before running:
+
+```
+VITE_ANTHROPIC_API_KEY=sk-ant-...
+VITE_SPOTIFY_CLIENT_ID=...
+VITE_SPOTIFY_REDIRECT_URI=http://localhost:5173
+```
+
+## Project structure
+
+- `src/App.jsx` — root: tab routing, drag handle for Glass Activity overlay
+- `src/components/Home.jsx` — connect status, quick actions, notification composer
+- `src/components/FitnessTracker.jsx` — camera PPG heart rate, step counter, workout tracker
+- `src/components/Maps.jsx` — idle search + active navigation
+- `src/components/Settings.jsx` — device, calibration, privacy/safety, glass behavior
+- `src/components/GlassActivity.jsx` — slide-down timeline, publish-confirm modal, composer
+- `src/glass/GlassHUD.jsx` — 600×600 glass display with HUD, fitness overlay, live captions
+- `src/App.css` — phone design system
+- `src/glass/GlassHUD.css` — glass display styles

@@ -957,3 +957,171 @@ body.ios-glass .ctrl-btn    { padding: 14px 28px; font-size: 16px; }
   font-size: 9px; color: rgba(255,255,255,0.2);
   font-family: 'JetBrains Mono', monospace;
 }
+
+/* ─── LIVE CAPTIONS ──────────────────────────────────────────────── */
+.captions-overlay {
+  position: absolute;
+  bottom: 64px; left: 16px; right: 16px;
+  z-index: 55; pointer-events: none;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.caption-line {
+  background: rgba(0,0,0,0.82);
+  color: rgba(255,255,255,0.95);
+  font-family: 'Inter', sans-serif;
+  font-size: 17px; font-weight: 500; line-height: 1.4;
+  padding: 7px 14px; border-radius: 8px;
+  text-align: center;
+  animation: captionIn 0.2s ease;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.caption-line.caption-old {
+  opacity: 0.42; font-size: 14px; padding: 5px 12px;
+}
+.caption-line.caption-interim {
+  color: rgba(255,255,255,0.5);
+  background: rgba(0,0,0,0.55);
+  font-style: italic;
+}
+@keyframes captionIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.captions-idle {
+  position: absolute; bottom: 64px; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 10px; color: rgba(96,165,250,0.5);
+  font-family: 'Space Grotesk', sans-serif; pointer-events: none;
+}
+.captions-idle-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: #60A5FA;
+  animation: ccPulse 1.2s ease-in-out infinite;
+}
+@keyframes ccPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
+}
+
+/* cp-quick-tile active-blue */
+.cp-quick-tile.active-blue .cp-tile-icon { background: rgba(96,165,250,0.2); }
+
+/* ─── FITNESS HUD OVERLAY ─────────────────────────────────────────── */
+.fit-hud {
+  position: absolute; inset: 0; z-index: 60;
+  background: linear-gradient(180deg, rgba(0,0,0,0.97) 0%, rgba(6,4,10,0.96) 100%);
+  display: flex; flex-direction: column;
+  padding: 14px 16px 12px;
+  animation: fitIn 0.35s ease;
+  pointer-events: auto;
+}
+.fit-hud.fit-hud-ending { opacity: 0.7; }
+@keyframes fitIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* top bar */
+.fit-top {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.fit-badge {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  font-family: 'Space Grotesk', sans-serif;
+  padding: 3px 8px; border-radius: 20px; flex-shrink: 0;
+}
+.fit-timer {
+  flex: 1; text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px; font-weight: 500; color: rgba(255,255,255,0.9);
+  letter-spacing: 0.04em;
+}
+.fit-close-btn {
+  background: rgba(255,255,255,0.06); border: none; color: rgba(255,255,255,0.4);
+  width: 24px; height: 24px; border-radius: 12px; cursor: pointer;
+  font-size: 11px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.fit-close-btn:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.12); }
+
+/* zone bar */
+.fit-zone-bar {
+  display: flex; gap: 2px; height: 5px; border-radius: 3px; overflow: hidden; margin-bottom: 3px;
+  transition: all 0.4s;
+}
+.fit-zone-seg {
+  border-radius: 2px; transition: opacity 0.4s;
+}
+.fit-zone-lbls {
+  display: flex; margin-bottom: 6px;
+}
+
+/* BPM hero */
+.fit-bpm-hero {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+}
+.fit-bpm-num {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 88px; font-weight: 700; line-height: 1;
+  transition: color 0.6s, text-shadow 0.6s;
+  letter-spacing: -2px;
+}
+.fit-bpm-unit {
+  font-size: 14px; color: rgba(255,255,255,0.35);
+  font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+  letter-spacing: 0.2em; margin-top: -4px;
+}
+.fit-zone-name {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.15em;
+  font-family: 'Space Grotesk', sans-serif;
+  text-transform: uppercase; margin-top: 4px;
+  transition: color 0.4s;
+}
+
+/* sparkline */
+.fit-sparkline-wrap {
+  height: 44px; display: flex; align-items: flex-end; gap: 2px;
+  padding: 0 2px; margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  position: relative;
+}
+.fit-spark-bar {
+  flex: 1; border-radius: 2px 2px 0 0;
+  transition: height 0.4s ease, background-color 0.4s;
+  min-height: 3px;
+}
+.fit-no-signal {
+  width: 100%; text-align: center; font-size: 9px;
+  color: rgba(255,255,255,0.2); padding-bottom: 8px;
+  font-family: 'Inter', sans-serif;
+}
+
+/* stats row */
+.fit-stats-row {
+  display: flex; align-items: center; gap: 0; margin-bottom: 6px;
+}
+.fit-stat {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.fit-stat-val {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.9);
+  letter-spacing: -0.5px;
+}
+.fit-stat-lbl {
+  font-size: 9px; color: rgba(255,255,255,0.35);
+  font-family: 'Inter', sans-serif; font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.fit-stat-sep {
+  width: 1px; height: 28px; background: rgba(255,255,255,0.06); flex-shrink: 0;
+}
+
+/* ending summary pill */
+.fit-summary-pill {
+  text-align: center; font-size: 10px; color: rgba(255,255,255,0.4);
+  font-family: 'Space Grotesk', sans-serif;
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px; padding: 5px 12px;
+}

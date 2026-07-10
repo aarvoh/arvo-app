@@ -29,6 +29,15 @@ function relTime(ts) {
   return new Date(ts).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
 }
 
+const NOTIF_APPS = [
+  { name: 'WhatsApp',  color: '#25D366' },
+  { name: 'Instagram', color: '#E1306C' },
+  { name: 'Gmail',     color: '#EA4335' },
+  { name: 'Messenger', color: '#0099FF' },
+  { name: 'Telegram',  color: '#2AABEE' },
+  { name: 'Snapchat',  color: '#FFFC00' },
+];
+
 export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spotifyConnected }) {
   const time = useLiveClock();
 
@@ -36,6 +45,10 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
   const [hourly,      setHourly]      = useState([]);
   const [city,        setCity]        = useState('');
   const [glassLive,   setGlassLive]   = useState(false);
+  const [notifApp,    setNotifApp]    = useState('WhatsApp');
+  const [notifSender, setNotifSender] = useState('');
+  const [notifMsg,    setNotifMsg]    = useState('');
+  const [notifSent,   setNotifSent]   = useState(false);
   const [recentItems, setRecentItems] = useState([]);
   const [todayCount,  setTodayCount]  = useState(0);
   const [nowPlaying,  setNowPlaying]  = useState(null);
@@ -125,6 +138,19 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
     poll(); const id = setInterval(poll, 5000);
     return () => { cancelled = true; clearInterval(id); };
   }, [spotifyConnected]);
+
+  function sendNotifToGlass() {
+    if (!notifMsg.trim()) return;
+    glassChannel?.postMessage({
+      type: 'notification',
+      app: notifApp,
+      sender: notifSender.trim() || 'Someone',
+      preview: notifMsg.trim(),
+    });
+    setNotifMsg(''); setNotifSender('');
+    setNotifSent(true);
+    setTimeout(() => setNotifSent(false), 2000);
+  }
 
   async function togglePlay() { if (isPlaying) { await pause(); setIsPlaying(false); } else { await play(); setIsPlaying(true); } }
   async function skipNext() {
@@ -307,6 +333,39 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
             </div>
             <svg className="qr-arrow" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </button>
+        </div>
+
+        {/* ── Send notification to glass ── */}
+        <div className="section-heading" style={{ marginTop: 24 }}>
+          <span>SEND TO GLASS</span>
+        </div>
+        <div className="notif-composer">
+          <div className="nc-app-row">
+            {NOTIF_APPS.map(a => (
+              <button key={a.name} className={`nc-app-btn${notifApp === a.name ? ' active' : ''}`}
+                style={{ '--na-color': a.color }}
+                onClick={() => setNotifApp(a.name)}>
+                {a.name}
+              </button>
+            ))}
+          </div>
+          <input className="nc-input" placeholder="Sender name (e.g. Priya)"
+            value={notifSender} onChange={e => setNotifSender(e.target.value)} />
+          <div className="nc-msg-row">
+            <input className="nc-input nc-msg-input" placeholder="Message preview…"
+              value={notifMsg} onChange={e => setNotifMsg(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') sendNotifToGlass(); }} />
+            <button className={`nc-send-btn${notifSent ? ' sent' : ''}`}
+              onClick={sendNotifToGlass} disabled={!notifMsg.trim()}>
+              {notifSent
+                ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              }
+            </button>
+          </div>
+          {!glassLive && (
+            <div className="nc-hint">Glass must be open to receive notifications</div>
+          )}
         </div>
 
         {/* ── Recent glass activity ── */}
