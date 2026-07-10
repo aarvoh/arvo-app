@@ -237,6 +237,13 @@ export default function GlassHUD() {
   const [showWeather,  setShowWeather]  = useState(false);
   const [gridPage,     setGridPage]     = useState(0);
   const [gridOffset,   setGridOffset]   = useState(0);
+  const [showCP,       setShowCP]       = useState(false);
+  const [cpMuted,      setCpMuted]      = useState(false);
+  const [cpDND,        setCpDND]        = useState(false);
+  const [battery,      setBattery]      = useState(null);
+  const cpDragY   = useRef(null);
+  const cpDNDRef  = useRef(false);
+  useEffect(() => { cpDNDRef.current = cpDND; }, [cpDND]);
   const gridDragX  = useRef(null);
   const gridPageRef = useRef(0);
   const slidesRef   = useRef(null);
@@ -262,6 +269,14 @@ export default function GlassHUD() {
 
   const showCallRef = useRef(false);
   useEffect(() => { showCallRef.current = showCall; }, [showCall]);
+
+  useEffect(() => {
+    if (!('getBattery' in navigator)) return;
+    navigator.getBattery().then(b => {
+      setBattery(Math.round(b.level * 100));
+      b.addEventListener('levelchange', () => setBattery(Math.round(b.level * 100)));
+    });
+  }, []);
 
   // controls chrome
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -365,6 +380,7 @@ export default function GlassHUD() {
           else setShowMusic(false);
           break;
         case 'notification':
+          if (cpDNDRef.current) break;
           setNotifData({ app: msg.app, sender: msg.sender, preview: msg.preview });
           setShowNotif(true);
           speakText(`${msg.app} from ${msg.sender}. ${msg.preview}`);
@@ -1131,7 +1147,100 @@ export default function GlassHUD() {
         {wakeTranscript ? wakeTranscript : 'hey arvo'}
       </div>
 
-      {/* Control bar */}
+      {/* ── CONTROL PANEL TRIGGER STRIP ── */}
+      <div className="cp-trigger-strip"
+        onMouseDown={e => { cpDragY.current = e.clientY; }}
+        onMouseUp={e => { if (cpDragY.current !== null && e.clientY - cpDragY.current > 18) { setShowCP(true); } else if (cpDragY.current !== null) { setShowCP(v => !v); } cpDragY.current = null; }}
+        onTouchStart={e => { cpDragY.current = e.touches[0].clientY; }}
+        onTouchEnd={e => { if (cpDragY.current !== null) { setShowCP(true); } cpDragY.current = null; }}
+      />
+
+      {/* ── CONTROL PANEL BACKDROP ── */}
+      {showCP && <div className="cp-backdrop" onClick={() => setShowCP(false)} />}
+
+      {/* ── CONTROL PANEL ── */}
+      <div className={`control-panel${showCP ? ' visible' : ''}`}>
+        {/* Quick tiles row */}
+        <div className="cp-quick-row">
+          {/* Mic */}
+          <div className={`cp-quick-tile${cpMuted ? ' active-red' : ''}`} onClick={() => setCpMuted(m => !m)} style={{ pointerEvents: 'auto' }}>
+            <div className="cp-tile-icon" style={{ background: cpMuted ? 'rgba(248,113,113,0.25)' : 'rgba(255,255,255,0.1)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke={cpMuted ? '#F87171' : 'rgba(255,255,255,0.8)'} strokeWidth="2" strokeLinecap="round" style={{width:14,height:14}}>
+                {cpMuted
+                  ? <><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23M12 19v3M8 23h8"/></>
+                  : <><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 23h8"/></>
+                }
+              </svg>
+            </div>
+            <span className="cp-tile-label">{cpMuted ? 'Muted' : 'Mic'}</span>
+          </div>
+
+          {/* DND */}
+          <div className={`cp-quick-tile${cpDND ? ' active-amber' : ''}`} onClick={() => setCpDND(d => !d)} style={{ pointerEvents: 'auto' }}>
+            <div className="cp-tile-icon" style={{ background: cpDND ? 'rgba(251,191,36,0.25)' : 'rgba(255,255,255,0.1)' }}>
+              <svg viewBox="0 0 24 24" fill={cpDND ? '#FBBF24' : 'none'} stroke={cpDND ? '#FBBF24' : 'rgba(255,255,255,0.8)'} strokeWidth="2" strokeLinecap="round" style={{width:14,height:14}}>
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </div>
+            <span className="cp-tile-label" style={{ color: cpDND ? '#FBBF24' : undefined }}>Do Not Disturb</span>
+          </div>
+
+          {/* Music */}
+          <div className="cp-quick-tile" onClick={() => { setShowCP(false); triggerMusic(); }} style={{ pointerEvents: 'auto' }}>
+            <div className="cp-tile-icon" style={{ background: 'rgba(29,185,84,0.15)', overflow: 'hidden', borderRadius: 8 }}>
+              {musicData?.albumArt
+                ? <img src={musicData.albumArt} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                : <svg viewBox="0 0 24 24" fill="#1DB954" style={{width:14,height:14}}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              }
+            </div>
+            <span className="cp-tile-label" style={{maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+              {musicData?.track || 'Music'}
+            </span>
+          </div>
+        </div>
+
+        {/* Wide tiles row */}
+        <div className="cp-wide-row">
+          {/* Volume */}
+          <div className="cp-wide-tile">
+            <div className="cp-wide-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" style={{width:16,height:16}}>
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+            </div>
+            <div>
+              <div className="cp-wide-label">Volume</div>
+              <div className="cp-vol-bars">
+                {[...Array(8)].map((_, i) => <div key={i} className="cp-vol-bar" style={{ opacity: i < 5 ? 1 : 0.2 }} />)}
+              </div>
+            </div>
+          </div>
+
+          {/* Battery */}
+          <div className="cp-wide-tile">
+            <div className="cp-wide-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke={battery !== null && battery < 20 ? '#F87171' : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round" style={{width:16,height:16}}>
+                <rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11v2"/>
+              </svg>
+            </div>
+            <div>
+              <div className="cp-wide-label">Battery</div>
+              <div className="cp-wide-value" style={{ color: battery !== null && battery < 20 ? '#F87171' : '#34D399' }}>
+                {battery !== null ? `${battery}%` : '–'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Settings button */}
+        <div className="cp-settings-btn" style={{ pointerEvents: 'auto' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" style={{width:14,height:14,flexShrink:0}}>
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>Settings</span>
+        </div>
+      </div>
+
     </div>
   );
 }
