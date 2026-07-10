@@ -237,7 +237,29 @@ export default function GlassHUD() {
   const [showWeather,  setShowWeather]  = useState(false);
   const [gridPage,     setGridPage]     = useState(0);
   const [gridOffset,   setGridOffset]   = useState(0);
-  const gridDragX = useRef(null);
+  const gridDragX  = useRef(null);
+  const gridPageRef = useRef(0);
+  const slidesRef   = useRef(null);
+  useEffect(() => { gridPageRef.current = gridPage; }, [gridPage]);
+
+  // Non-passive touchmove so we can preventDefault and stop scroll hijack
+  useEffect(() => {
+    const el = slidesRef.current;
+    if (!el) return;
+    const handler = e => {
+      if (gridDragX.current === null) return;
+      e.preventDefault();
+      const dx = e.touches[0].clientX - gridDragX.current;
+      const page = gridPageRef.current;
+      const clamped = page === 0 ? Math.max(dx, -300)
+                    : page === PAGE_TILES.length - 1 ? Math.min(dx, 300)
+                    : dx;
+      setGridOffset(clamped);
+    };
+    el.addEventListener('touchmove', handler, { passive: false });
+    return () => el.removeEventListener('touchmove', handler);
+  }, []);
+
   const showCallRef = useRef(false);
   useEffect(() => { showCallRef.current = showCall; }, [showCall]);
 
@@ -493,8 +515,9 @@ export default function GlassHUD() {
   function onGridDragMove(clientX) {
     if (gridDragX.current === null) return;
     const dx = clientX - gridDragX.current;
-    const clamped = gridPage === 0 ? Math.max(dx, -300)
-                  : gridPage === PAGE_TILES.length - 1 ? Math.min(dx, 300)
+    const page = gridPageRef.current;
+    const clamped = page === 0 ? Math.max(dx, -300)
+                  : page === PAGE_TILES.length - 1 ? Math.min(dx, 300)
                   : dx;
     setGridOffset(clamped);
   }
@@ -973,13 +996,12 @@ export default function GlassHUD() {
                     onClick={() => setGridPage(i)} style={{ pointerEvents: 'auto', cursor: 'pointer' }} />
                 ))}
               </div>
-              <div className="app-grid-slides"
+              <div className="app-grid-slides" ref={slidesRef}
                 onMouseDown={e => { e.preventDefault(); onGridDragStart(e.clientX); }}
                 onMouseMove={e => onGridDragMove(e.clientX)}
                 onMouseUp={e => onGridDragEnd(e.clientX)}
                 onMouseLeave={e => onGridDragEnd(e.clientX)}
                 onTouchStart={e => onGridDragStart(e.touches[0].clientX)}
-                onTouchMove={e => { e.preventDefault(); onGridDragMove(e.touches[0].clientX); }}
                 onTouchEnd={e => onGridDragEnd(e.changedTouches[0].clientX)}
               >
                 <div className="app-grid-track" style={{
