@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Loader } from '@googlemaps/js-api-loader';
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import useLiveClock from '../hooks/useLiveClock';
 import glassChannel from '../lib/glassChannel';
 
@@ -147,30 +147,41 @@ export default function Maps() {
   // ── init Google Maps ──
   useEffect(() => {
     if (!MAPS_KEY) { setLocStatus('no-key'); return; }
-    const loader = new Loader({ apiKey: MAPS_KEY, version: 'weekly', libraries: ['places'] });
-    loader.load().then(google => {
-      googleRef.current = google;
-      if (!mapRef.current) return;
-      const map = new google.maps.Map(mapRef.current, {
-        center: { lat: 20, lng: 78 }, zoom: 5,
-        styles: MAP_STYLE, disableDefaultUI: true,
-        gestureHandling: 'greedy', clickableIcons: false,
-      });
-      mapInstanceRef.current = map;
-      directionsServiceRef.current  = new google.maps.DirectionsService();
-      directionsRendererRef.current = new google.maps.DirectionsRenderer({
-        suppressMarkers: true,
-        polylineOptions: { strokeColor: '#3B82F6', strokeWeight: 5, strokeOpacity: 0.9 },
-        map,
-      });
-      placesServiceRef.current       = new google.maps.places.PlacesService(map);
-      geocoderRef.current            = new google.maps.Geocoder();
-      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
-      map.addListener('dragstart', () => {
-        if (followModeRef.current) { setFollowMode(false); followModeRef.current = false; }
-      });
-      setMapReady(true);
-    }).catch(() => setLocStatus('error'));
+    const initMap = async () => {
+      try {
+        setOptions({ apiKey: MAPS_KEY, version: 'weekly' });
+        const [mapsLib, placesLib, routesLib, geocodingLib] = await Promise.all([
+          importLibrary('maps'),
+          importLibrary('places'),
+          importLibrary('routes'),
+          importLibrary('geocoding'),
+        ]);
+        if (!mapRef.current) return;
+        googleRef.current = window.google;
+        const map = new mapsLib.Map(mapRef.current, {
+          center: { lat: 20, lng: 78 }, zoom: 5,
+          styles: MAP_STYLE, disableDefaultUI: true,
+          gestureHandling: 'greedy', clickableIcons: false,
+        });
+        mapInstanceRef.current = map;
+        directionsServiceRef.current  = new routesLib.DirectionsService();
+        directionsRendererRef.current = new routesLib.DirectionsRenderer({
+          suppressMarkers: true,
+          polylineOptions: { strokeColor: '#3B82F6', strokeWeight: 5, strokeOpacity: 0.9 },
+          map,
+        });
+        placesServiceRef.current       = new placesLib.PlacesService(map);
+        geocoderRef.current            = new geocodingLib.Geocoder();
+        autocompleteServiceRef.current = new placesLib.AutocompleteService();
+        map.addListener('dragstart', () => {
+          if (followModeRef.current) { setFollowMode(false); followModeRef.current = false; }
+        });
+        setMapReady(true);
+      } catch {
+        setLocStatus('error');
+      }
+    };
+    initMap();
   }, []);
 
   // ── GPS watch ──
