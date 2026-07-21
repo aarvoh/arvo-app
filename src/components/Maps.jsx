@@ -91,10 +91,15 @@ async function reverseGeocode(lat, lon) {
   return (await res.json()).address;
 }
 async function fetchRoute(from, to, mode) {
-  const profile = mode === 'walking' ? 'foot' : 'driving';
   try {
-    const data = await (await fetch(`https://router.project-osrm.org/route/v1/${profile}/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&steps=true`)).json();
-    if (data.code === 'Ok' && data.routes?.length) return data.routes[0];
+    // OSRM public server only has the car profile — use it for geometry & distance,
+    // then recalculate duration for walking at 5 km/h (1.389 m/s)
+    const data = await (await fetch(`https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&steps=true`)).json();
+    if (data.code === 'Ok' && data.routes?.length) {
+      const route = { ...data.routes[0] };
+      if (mode === 'walking') route.duration = route.distance / 1.389;
+      return route;
+    }
   } catch {}
   return null;
 }

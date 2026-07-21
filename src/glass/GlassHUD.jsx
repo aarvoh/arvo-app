@@ -208,6 +208,42 @@ function speakText(text, onDone) {
 let _globalSeq = 0;
 function nextSeq() { return ++_globalSeq; }
 
+function NavTurnArrow({ instruction = '' }) {
+  const i = (instruction || '').toLowerCase();
+  const c = 'rgba(255,255,255,0.95)';
+  const s = { width: 76, height: 76 };
+  if (/arrive/.test(i)) return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <circle cx="30" cy="30" r="20" stroke={c} strokeWidth="3.5"/>
+      <circle cx="30" cy="30" r="8" fill={c}/>
+    </svg>
+  );
+  if (/u.?turn/.test(i)) return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <path d="M38 48V22a10 10 0 0 0-20 0v4" stroke={c} strokeWidth="4" strokeLinecap="round"/>
+      <path d="M18 20l-8 6 8 6" stroke={c} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+  if (/\bleft\b/.test(i)) return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <path d="M22 48V28h22" stroke={c} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M30 20l-8 8 8 8" stroke={c} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+  if (/\bright\b/.test(i)) return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <path d="M38 48V28H16" stroke={c} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M30 20l8 8-8 8" stroke={c} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+  return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <path d="M30 48V14" stroke={c} strokeWidth="4" strokeLinecap="round"/>
+      <path d="M18 26l12-12 12 12" stroke={c} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 // ─── component ────────────────────────────────────────────────────
 export default function GlassHUD() {
   const time = useLiveClock();
@@ -1395,6 +1431,24 @@ export default function GlassHUD() {
             </div>
           )}
 
+          {/* Nav Player — Meta-style, opens like Spotify */}
+          {showNav && navData && hudMode === 'idle' && (
+            <div className="nav-player-full">
+              <button className="npf-close" onClick={() => setShowNav(false)} style={{ pointerEvents: 'auto' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{width:14,height:14}}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              <div className="npf-arrow">
+                <NavTurnArrow instruction={navData.instruction} />
+              </div>
+              <div className="npf-street">{navData.street}</div>
+              <div className="npf-distance">{navData.distance}</div>
+              <div className="npf-footer">
+                {navData.dest && <div className="npf-dest">📍 {navData.dest}</div>}
+                {navData.eta  && <div className="npf-eta">ETA {navData.eta}</div>}
+              </div>
+            </div>
+          )}
+
           {/* Full Music Player */}
           {showMusic && musicData && hudMode === 'idle' && (
             <div className="music-player-full">
@@ -1474,26 +1528,7 @@ export default function GlassHUD() {
           )}
         </div>
 
-        {/* ── MAPS NAV CARD (Meta style) ── */}
-        {navData && (
-          <div className={`maps-nav-card${showNav ? ' visible' : ' exiting'}`}>
-            <div className="maps-grid-overlay">
-              {[...Array(6)].map((_, i) => <div key={i} className="maps-grid-line-h" style={{ top: `${(i+1)*16}%` }} />)}
-              {[...Array(6)].map((_, i) => <div key={i} className="maps-grid-line-v" style={{ left: `${(i+1)*16}%` }} />)}
-              <div className="maps-pin">
-                <svg viewBox="0 0 24 24" fill="#EF4444" style={{width:18,height:18}}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-              </div>
-            </div>
-            <div className="maps-info-card">
-              <div className="maps-dest">{navData.dest || navData.street}</div>
-              <div className="maps-sub">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:11,height:11,opacity:0.6}}><path d="M16 16l-4-4-4 4M12 12V3"/><path d="M20 21H4"/></svg>
-                {navData.distance}{navData.eta ? ` · ETA ${navData.eta}` : ''}
-              </div>
-              <div className="maps-instruction">{navData.instruction} onto {navData.street}</div>
-            </div>
-          </div>
-        )}
+        {/* nav overlay lives in hud-center — see below */}
       </div>
 
       {/* Live voice transcript */}
