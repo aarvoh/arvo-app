@@ -690,7 +690,20 @@ export default function GlassHUD() {
   }
 
   // ── manual triggers ──
-  function triggerNav()     { setNavData({ instruction: 'Turn right', street: 'MG Road', distance: '200 m' }); setShowNav(v => !v); }
+  function triggerNav() {
+    if (navData) {
+      // nav already active from phone — just toggle the overlay
+      setShowNav(v => !v);
+    } else {
+      // no active nav — ask phone to open Maps tab
+      outSeqRef.current += 1;
+      glassChannel?.postMessage({ type: 'open_maps', seq_id: outSeqRef.current });
+      setAnswer('Opening Maps on your phone…\nSearch a destination to start navigation.');
+      setHudMode('answer');
+      setAnswerExiting(false);
+      speakText('Opening Maps on your phone', backToWake);
+    }
+  }
   async function triggerMusic() {
     if (showMusic) { setShowMusic(false); return; }
     try {
@@ -932,8 +945,12 @@ export default function GlassHUD() {
       }
       if (/open maps|show maps|navigate|directions|start navigation/i.test(cmd)) {
         triggerNav();
-        setHudMode('idle');
-        speakText('Showing maps', backToWake);
+        if (!navData) {
+          speakText('Opening Maps on your phone. Search a destination to start navigation.', backToWake);
+        } else {
+          setHudMode('idle');
+          speakText('Showing navigation', backToWake);
+        }
         return;
       }
       if (/open control(?: panel| center)?|settings|control panel/i.test(cmd)) {

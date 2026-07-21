@@ -25,6 +25,16 @@ export default function App() {
     return () => clearInterval(id);
   }, []);
 
+  // Glass can ask phone to switch tabs
+  useEffect(() => {
+    if (!glassChannel) return;
+    function handle(e) {
+      if (e.data?.type === 'open_maps') setActiveTab('maps');
+    }
+    glassChannel.addEventListener('message', handle);
+    return () => glassChannel.removeEventListener('message', handle);
+  }, []);
+
   // Handle Spotify OAuth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
