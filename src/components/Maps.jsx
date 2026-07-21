@@ -561,7 +561,7 @@ export default function Maps() {
 
       {locStatus === 'loading' && <div className="location-banner"><span className="spinner" style={{ width:11, height:11, flexShrink:0 }} />Getting your precise location…</div>}
       {locStatus === 'denied'  && <div className="location-banner denied">Location access denied — enable in browser settings</div>}
-      {locStatus === 'error'   && <div className="location-banner denied">Google Maps failed to load — check your API key</div>}
+      {locStatus === 'error'   && <div className="location-banner denied">Google Maps failed to load — enable Maps JavaScript API, Places API, Directions API & Geocoding API in Google Cloud Console for your key</div>}
 
       {showNearby && (
         <div className="sheet">

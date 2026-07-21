@@ -466,10 +466,9 @@ export default function GlassHUD() {
           if (msg.playing) {
             setMusicData({ track: msg.track, artist: msg.artist, albumArt: msg.albumArt || null, source: 'spotify' });
             setMusicPlaying(true);
-            setShowMusic(true);
+            // intentionally not setting showMusic — user must tap Spotify tile to open
           } else {
             setMusicPlaying(false);
-            // don't hide — let user see track name and tap play to resume
           }
           break;
         case 'notification':
@@ -1395,10 +1394,23 @@ export default function GlassHUD() {
                             if (name === 'Maps')    { triggerNav(); return; }
                             if (name === 'Calls')   { endSession(); startVoiceQuery(); return; }
                             if (name === 'Camera')  {
+                              if (!camReady) {
+                                setAnswer('Camera not available — allow camera access in your browser settings, then reload.');
+                                setHudMode('answer'); setAnswerExiting(false);
+                                speakText('Camera not available. Please allow camera access in your browser settings.', backToWake);
+                                return;
+                              }
                               setShowScan(true);
                               setHudMode('processing');
                               setQuery('"What do you see?"');
                               const frame = captureFrame(videoRef.current);
+                              if (!frame) {
+                                setShowScan(false);
+                                setAnswer('Camera not ready — try again.');
+                                setHudMode('answer');
+                                backToWake();
+                                return;
+                              }
                               try {
                                 const ans = await askClaude('What do you see in front of me? Describe briefly in 1–2 sentences.', frame);
                                 setShowScan(false);
