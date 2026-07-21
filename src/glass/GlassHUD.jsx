@@ -292,6 +292,7 @@ export default function GlassHUD() {
   const gridDragX  = useRef(null);
   const gridPageRef = useRef(0);
   const slidesRef   = useRef(null);
+  const swipedRef   = useRef(false);
   useEffect(() => { gridPageRef.current = gridPage; }, [gridPage]);
 
   // Non-passive touchmove so we can preventDefault and stop scroll hijack
@@ -680,6 +681,7 @@ export default function GlassHUD() {
   function onGridDragEnd(clientX) {
     if (gridDragX.current === null) return;
     const dx = clientX - gridDragX.current;
+    if (Math.abs(dx) > 15) swipedRef.current = true; // suppress the click that fires after touchend
     if (dx < -50) setGridPage(p => Math.min(p + 1, PAGE_TILES.length - 1));
     else if (dx > 50) setGridPage(p => Math.max(p - 1, 0));
     gridDragX.current = null;
@@ -798,6 +800,16 @@ export default function GlassHUD() {
     const recog = new SR();
     recog.lang = 'en-IN'; recog.interimResults = true; recog.continuous = false;
 
+    // Hard timeout — if mic hangs or onerror doesn't fire onend, force exit after 9s
+    let listenTimeout = setTimeout(() => {
+      try { recog.abort(); } catch {}
+      voiceActiveRef.current = false;
+      setVoiceActive(false);
+      setHudMode('idle');
+      setVoiceTranscript('');
+      if (!isIOS) setTimeout(startWakeListener, 400);
+    }, 9000);
+
     recog.onstart = () => { setVoiceActive(true); setHudMode('listening'); setVoiceTranscript(''); setWakeFlash(false); };
 
     recog.onresult = (e) => {
@@ -806,7 +818,18 @@ export default function GlassHUD() {
       transcriptRef.current = t;
     };
 
+    // onerror — mic denied, audio-capture, network, etc. Exit cleanly.
+    recog.onerror = () => {
+      clearTimeout(listenTimeout);
+      voiceActiveRef.current = false;
+      setVoiceActive(false);
+      setVoiceTranscript('');
+      setHudMode('idle');
+      if (!isIOS) setTimeout(startWakeListener, 500);
+    };
+
     recog.onend = async () => {
+      clearTimeout(listenTimeout);
       setVoiceActive(false);
       voiceActiveRef.current = false;
 
@@ -1331,6 +1354,10 @@ export default function GlassHUD() {
                       {tiles.map(({ name, bg }) => (
                         <div key={name} className="app-tile" style={{ background: bg }}
                           onClick={async () => {
+                            // swipe ended on this tile — suppress the synthetic click
+                            if (swipedRef.current) { swipedRef.current = false; return; }
+                            // already listening — ignore re-tap
+                            if (voiceActiveRef.current) return;
                             if (name === 'Fitness') { setShowFitness(true); return; }
                             if (name === 'Spotify') { triggerMusic(); return; }
                             if (name === 'Maps')    { triggerNav(); return; }
