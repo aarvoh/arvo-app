@@ -48,14 +48,14 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
   const [editingName,   setEditingName]   = useState(false);
 
   // test API on mount
-  useState(() => {
+  useEffect(() => {
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }] }),
     }).then(r => r.json()).then(d => {
       setApiStatus(d.content?.includes('ANTHROPIC_API_KEY') ? 'error' : 'ok');
     }).catch(() => setApiStatus('error'));
-  });
+  }, []);
 
   async function testApi() {
     setApiTesting(true); setApiStatus('testing');

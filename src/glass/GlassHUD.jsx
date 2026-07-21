@@ -802,14 +802,14 @@ export default function GlassHUD() {
     voiceRecogRef.current = recog;
     recog.lang = 'en-IN'; recog.interimResults = true; recog.continuous = false;
 
-    // Hard timeout — if mic hangs or onerror doesn't fire onend, force exit after 9s
+    // Hard timeout — aborts if mic hangs AND onend never fires (e.g. Chrome bug)
     let listenTimeout = setTimeout(() => {
       try { recog.abort(); } catch {}
       voiceActiveRef.current = false;
       setVoiceActive(false);
       setHudMode('idle');
       setVoiceTranscript('');
-      if (!isIOS) setTimeout(startWakeListener, 400);
+      // onend fires after abort and calls startWakeListener itself — no need to schedule it here
     }, 9000);
 
     recog.onstart = () => { setVoiceActive(true); setHudMode('listening'); setVoiceTranscript(''); setWakeFlash(false); };
@@ -818,16 +818,6 @@ export default function GlassHUD() {
       const t = Array.from(e.results).map(r => r[0].transcript).join('');
       setVoiceTranscript(t);
       transcriptRef.current = t;
-    };
-
-    // onerror — mic denied, audio-capture, network, etc. Exit cleanly.
-    recog.onerror = () => {
-      clearTimeout(listenTimeout);
-      voiceActiveRef.current = false;
-      setVoiceActive(false);
-      setVoiceTranscript('');
-      setHudMode('idle');
-      if (!isIOS) setTimeout(startWakeListener, 500);
     };
 
     recog.onend = async () => {
