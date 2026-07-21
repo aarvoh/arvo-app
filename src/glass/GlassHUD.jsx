@@ -2,6 +2,19 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './GlassHUD.css';
 import glassChannel from '../lib/glassChannel';
 import useBrainSocket from '../lib/useBrainSocket';
+import { setOptions as gmSetOptions, importLibrary as gmImportLibrary } from '@googlemaps/js-api-loader';
+
+const HUD_MAP_STYLE = [
+  { elementType: 'geometry',           stylers: [{ color: '#0f1117' }] },
+  { elementType: 'labels.icon',        stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill',   stylers: [{ color: '#8a9bb0' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0f1117' }] },
+  { featureType: 'poi',                stylers: [{ visibility: 'off' }] },
+  { featureType: 'road',               elementType: 'geometry', stylers: [{ color: '#1e2235' }] },
+  { featureType: 'road.highway',       elementType: 'geometry', stylers: [{ color: '#2c3d6b' }] },
+  { featureType: 'transit',            stylers: [{ visibility: 'off' }] },
+  { featureType: 'water',              elementType: 'geometry', stylers: [{ color: '#06080f' }] },
+];
 import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext, previous as spotifyPrev, searchAndPlay, getCurrentlyPlaying, isConnected as spotifyIsConnected, initiateLogin as spotifyLogin, disconnect as spotifyDisconnect } from '../lib/spotify';
 
 // ─── app branding ─────────────────────────────────────────────────
@@ -282,6 +295,10 @@ export default function GlassHUD() {
 
   // overlay cards
   const [navData,      setNavData]      = useState(null);  const [showNav,     setShowNav]     = useState(false);
+  const [navUserCoords, setNavUserCoords] = useState(null);
+  const hudMapDivRef   = useRef(null);
+  const hudMapInstRef  = useRef(null);
+  const hudMarkerRef   = useRef(null);
   const [musicData,    setMusicData]    = useState(null);  const [showMusic,   setShowMusic]   = useState(false);
   const [musicPlaying, setMusicPlaying] = useState(true);
   const [notifData,    setNotifData]    = useState(null);  const [showNotif,   setShowNotif]   = useState(false);
@@ -404,6 +421,39 @@ export default function GlassHUD() {
     return () => activeStream?.getTracks().forEach(t => t.stop());
   }, []);
 
+  // ── HUD mini map: init when coords first arrive ──
+  useEffect(() => {
+    if (!navUserCoords || !hudMapDivRef.current || hudMapInstRef.current) return;
+    const key = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+    if (!key) return;
+    (async () => {
+      try {
+        gmSetOptions({ apiKey: key, version: 'weekly' });
+        const mapsLib = await gmImportLibrary('maps');
+        if (!hudMapDivRef.current) return;
+        const map = new mapsLib.Map(hudMapDivRef.current, {
+          center: navUserCoords, zoom: 17, styles: HUD_MAP_STYLE,
+          disableDefaultUI: true, gestureHandling: 'none', clickableIcons: false,
+        });
+        hudMapInstRef.current = map;
+        hudMarkerRef.current = new window.google.maps.Marker({
+          position: navUserCoords, map,
+          icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#3B82F6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2.5 },
+          zIndex: 10,
+        });
+      } catch {}
+    })();
+  }, [navUserCoords]); // eslint-disable-line
+
+  // ── HUD mini map: cleanup when nav ends ──
+  useEffect(() => {
+    if (!showNav) {
+      hudMapInstRef.current = null;
+      hudMarkerRef.current = null;
+      setNavUserCoords(null);
+    }
+  }, [showNav]);
+
   // ── weather ──
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(async pos => {
@@ -461,6 +511,14 @@ export default function GlassHUD() {
         case 'nav_turn':
           setNavData(d => ({ ...d, instruction: msg.instruction, street: msg.street, distance: msg.distance }));
           speakText(`In ${msg.distance}, ${msg.instruction} onto ${msg.street}.`);
+          break;
+        case 'location_update':
+          setNavUserCoords({ lat: msg.lat, lng: msg.lng });
+          if (hudMapInstRef.current) {
+            const pos = { lat: msg.lat, lng: msg.lng };
+            hudMapInstRef.current.panTo(pos);
+            if (hudMarkerRef.current) hudMarkerRef.current.setPosition(pos);
+          }
           break;
         case 'music_update':
           if (msg.playing) {
@@ -1442,23 +1500,37 @@ export default function GlassHUD() {
             </div>
           )}
 
-          {/* Nav Player — same pattern as Spotify, replaces grid */}
+          {/* Nav Player — redesigned with mini map */}
           {showNav && hudMode === 'idle' && (
             <div className="nav-player-full">
               <button className="npf-close" onClick={() => setShowNav(false)} style={{ pointerEvents: 'auto' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{width:14,height:14}}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
-              <div className="npf-arrow-wrap">
-                {navData
-                  ? <NavTurnArrow instruction={navData.instruction} />
-                  : <svg viewBox="0 0 24 24" fill="none" stroke="rgba(59,130,246,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{width:52,height:52}}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
-                }
+
+              {/* Turn arrow + distance/street in a row */}
+              <div className="npf-top-row">
+                <div className="npf-arrow-wrap">
+                  {navData
+                    ? <NavTurnArrow instruction={navData.instruction} />
+                    : <svg viewBox="0 0 24 24" fill="none" stroke="rgba(59,130,246,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{width:44,height:44}}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+                  }
+                </div>
+                <div className="npf-top-info">
+                  <div className="npf-distance" style={{ color: navData ? '#3B82F6' : 'rgba(255,255,255,0.3)' }}>
+                    {navData ? navData.distance : '—'}
+                  </div>
+                  <div className="npf-street">
+                    {navData ? navData.street : 'Search on your phone'}
+                  </div>
+                </div>
               </div>
-              <div className="npf-street">{navData ? navData.street : 'No navigation'}</div>
-              <div className="npf-distance" style={{ color: navData ? '#3B82F6' : 'rgba(255,255,255,0.3)' }}>
-                {navData ? navData.distance : 'Search on your phone to start'}
-              </div>
-              {navData && <div className="npf-route-bar"><div className="npf-route-fill" /></div>}
+
+              {/* Mini map */}
+              {navData && (
+                <div className="npf-mini-map" ref={hudMapDivRef} />
+              )}
+
+              {/* Footer: dest + ETA */}
               {navData && (
                 <div className="npf-footer">
                   {navData.dest && <div className="npf-dest">📍 {navData.dest}</div>}

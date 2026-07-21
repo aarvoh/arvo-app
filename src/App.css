@@ -693,9 +693,10 @@
 .map-container-wrap { position: absolute; inset: 0; z-index: 1; }
 .maps-top-chrome { position: relative; z-index: 10; padding: 18px 18px 0; flex-shrink: 0; }
 .search-row {
-  display: flex; align-items: center; gap: 10px; margin-top: 14px;
-  background: rgba(15,17,21,0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px;
+  display: flex; align-items: center; gap: 10px; margin-top: 12px;
+  background: rgba(18,20,26,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--line); border-radius: 22px; padding: 13px 16px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.35);
 }
 .search-row svg { width: 17px; height: 17px; stroke: var(--paper-dim); flex-shrink: 0; }
 .search-row input { flex: 1; background: none; border: none; outline: none; color: var(--paper); font-size: 14.5px; font-family: 'Inter', sans-serif; }
@@ -803,6 +804,73 @@
 }
 .btn-end-nav:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.5); }
 .btn-end-nav:active { transform: scale(0.98); }
+
+/* ─── nav top card (Google Maps style) ─────────────────────────── */
+.nav-top-card {
+  display: flex; align-items: center; gap: 12px; margin-top: 12px;
+  background: rgba(12,14,20,0.94); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(59,130,246,0.2); border-radius: 20px; padding: 12px 14px;
+  min-height: 70px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.nav-top-arrow-box {
+  width: 50px; height: 50px; border-radius: 14px; flex-shrink: 0;
+  background: rgba(59,130,246,0.14); border: 1.5px solid rgba(59,130,246,0.28);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 20px rgba(59,130,246,0.15);
+}
+.nav-top-info { flex: 1; min-width: 0; }
+.nav-top-dist {
+  font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700;
+  color: var(--paper); line-height: 1; letter-spacing: -0.02em;
+}
+.nav-top-street {
+  font-size: 12.5px; color: var(--paper-dim); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nav-top-then {
+  font-size: 11px; color: var(--paper-faint); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nav-top-modes { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+
+/* ─── nav bottom strip (Google Maps style) ──────────────────────── */
+.nav-bottom-strip {
+  position: relative; z-index: 3; margin-top: auto; flex-shrink: 0;
+  background: rgba(12,14,20,0.96); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-radius: 24px 24px 0 0; border-top: 1px solid var(--line);
+  padding: 14px 18px 22px;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
+}
+.nav-strip-glass {
+  display: flex; align-items: center; gap: 5px; padding-right: 10px; flex-shrink: 0;
+  border-right: 1px solid var(--line);
+}
+.nav-strip-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #10B981; flex-shrink: 0;
+  box-shadow: 0 0 0 2.5px rgba(16,185,129,0.2); animation: pulse 2s ease-in-out infinite;
+}
+.nav-strip-data { display: flex; align-items: center; flex: 1; }
+.nav-strip-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.nav-strip-val {
+  font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; color: var(--paper);
+  white-space: nowrap;
+}
+.nav-strip-lbl {
+  font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: var(--paper-faint); letter-spacing: 0.08em;
+}
+.nav-strip-sep { width: 1px; height: 26px; background: var(--line); flex-shrink: 0; margin: 0 2px; }
+.nav-strip-end-btn {
+  flex-shrink: 0; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+  color: #EF4444; border-radius: 13px; padding: 9px 16px;
+  font-weight: 700; font-size: 13px; font-family: 'Space Grotesk', sans-serif;
+  cursor: pointer; margin-left: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.nav-strip-end-btn:hover { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.5); }
+.nav-strip-end-btn:active { transform: scale(0.97); }
 
 /* ─── recenter pill ────────────────────────────────────────────── */
 .recenter-pill {

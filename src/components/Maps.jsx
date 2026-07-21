@@ -80,6 +80,41 @@ function makeDestIcon(google) {
   };
 }
 
+function TurnArrowIcon({ instruction = '', size = 34, color = '#fff' }) {
+  const i = (instruction || '').toLowerCase();
+  const s = { width: size, height: size };
+  if (/arrive|destination/.test(i)) return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <circle cx="30" cy="30" r="20" stroke={color} strokeWidth="3.5"/>
+      <circle cx="30" cy="30" r="8" fill={color}/>
+    </svg>
+  );
+  if (/u.?turn/.test(i)) return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <path d="M38 48V22a10 10 0 0 0-20 0v4" stroke={color} strokeWidth="4" strokeLinecap="round"/>
+      <path d="M18 20l-8 6 8 6" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+  if (/left/.test(i)) return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <path d="M22 48V28h22" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M30 20l-8 8 8 8" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+  if (/right/.test(i)) return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <path d="M38 48V28H16" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M30 20l8 8-8 8" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+  return (
+    <svg viewBox="0 0 60 60" fill="none" style={s}>
+      <path d="M30 48V14" stroke={color} strokeWidth="4" strokeLinecap="round"/>
+      <path d="M18 26l12-12 12 12" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 export default function Maps() {
   const time = useLiveClock();
 
@@ -212,6 +247,7 @@ export default function Maps() {
         });
       }
       if (followModeRef.current) map.panTo(latlng);
+      if (navActiveRef.current) glassChannel?.postMessage({ type: 'location_update', lat: coords[0], lng: coords[1] });
 
       if (navActiveRef.current) {
         const steps = stepsRef.current; const idx = currentStepIdxRef.current;
@@ -505,55 +541,86 @@ export default function Maps() {
           {battery !== null && <span className="mono">{battery}%</span>}
         </div>
 
-        <div className="search-row">
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input
-            type="text"
-            placeholder="Where do you want to go?"
-            value={navActive ? (navPlace?.name||'') : selectedPlace ? selectedPlace.name : searchQuery}
-            readOnly={navActive || !!selectedPlace}
-            onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
-            onFocus={() => { if (!selectedPlace) setSearchOpen(true); }}
-            onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
-          />
-          {(navActive || selectedPlace)
-            ? <button className="search-clear-btn" onClick={navActive ? endNav : dismissPreview}>✕</button>
-            : searchQuery
-              ? <button className="search-clear-btn" onClick={() => { setSearchQuery(''); setSearchResults([]); }}>✕</button>
-              : <div className="mic-pill">
-                  <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3"/></svg>
-                  ready
+        {navActive ? (
+          <div className="nav-top-card">
+            {routeLoading ? (
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <span className="spinner" style={{ width:18, height:18, borderColor:'rgba(59,130,246,0.2)', borderTopColor:'#3B82F6' }}/>
+                <span style={{ fontSize:14, color:'rgba(255,255,255,0.7)' }}>Calculating route…</span>
+              </div>
+            ) : currentStep ? (
+              <>
+                <div className="nav-top-arrow-box">
+                  <TurnArrowIcon instruction={stepInstruction(currentStep)} size={34} color="#fff"/>
                 </div>
-          }
-
-          {showDropdown && (
-            <div className="search-dropdown">
-              {searchLoading && (
-                <div className="search-drop-item"><span className="spinner" style={{ width:12, height:12, flexShrink:0 }} /><span style={{ fontSize:13, color:'var(--paper-dim)' }}>Searching…</span></div>
-              )}
-              {!searchLoading && searchResults.map((r, i) => (
-                <div key={i} className="search-drop-item" onMouseDown={() => selectPrediction(r)}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:14, height:14, flexShrink:0, color:'var(--paper-faint)' }}>
-                    <path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>
-                  </svg>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13.5, color:'var(--paper)', fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                      {r.structured_formatting?.main_text || r.description}
-                    </div>
-                    {r.structured_formatting?.secondary_text && (
-                      <div style={{ fontSize:11.5, color:'var(--paper-faint)', marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                        {r.structured_formatting.secondary_text}
-                      </div>
-                    )}
+                <div className="nav-top-info">
+                  <div className="nav-top-dist">{currentStep.distance.text}</div>
+                  <div className="nav-top-street">{stepStreet(currentStep)}</div>
+                  {nextStep && <div className="nav-top-then">then · {stepInstruction(nextStep)}</div>}
+                </div>
+                <div className="nav-top-modes">
+                  <button className={`nav-mode-btn${travelMode==='driving'?' active':''}`} onClick={() => setTravelMode('driving')} style={{ padding:'6px 8px', flex:'none', width:36 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:15, height:15 }}><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                  </button>
+                  <button className={`nav-mode-btn${travelMode==='walking'?' active':''}`} onClick={() => setTravelMode('walking')} style={{ padding:'6px 8px', flex:'none', width:36 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:15, height:15 }}><circle cx="13" cy="4" r="2"/><path d="M9.5 9.5L11 16l-3 2M14.5 9.5L13 16l3 2M9.5 9.5c1-1.5 3-2 5 0"/></svg>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <span style={{ fontSize:13, color:'rgba(255,255,255,0.6)' }}>Navigating…</span>
+            )}
+          </div>
+        ) : (
+          <div className="search-row">
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input
+              type="text"
+              placeholder="Where do you want to go?"
+              value={selectedPlace ? selectedPlace.name : searchQuery}
+              readOnly={!!selectedPlace}
+              onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+              onFocus={() => { if (!selectedPlace) setSearchOpen(true); }}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+            />
+            {selectedPlace
+              ? <button className="search-clear-btn" onClick={dismissPreview}>✕</button>
+              : searchQuery
+                ? <button className="search-clear-btn" onClick={() => { setSearchQuery(''); setSearchResults([]); }}>✕</button>
+                : <div className="mic-pill">
+                    <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3"/></svg>
+                    ready
                   </div>
-                </div>
-              ))}
-              {!searchLoading && searchResults.length === 0 && (
-                <div className="search-drop-item" style={{ color:'var(--paper-faint)', fontSize:13 }}>No results found</div>
-              )}
-            </div>
-          )}
-        </div>
+            }
+            {showDropdown && (
+              <div className="search-dropdown">
+                {searchLoading && (
+                  <div className="search-drop-item"><span className="spinner" style={{ width:12, height:12, flexShrink:0 }} /><span style={{ fontSize:13, color:'var(--paper-dim)' }}>Searching…</span></div>
+                )}
+                {!searchLoading && searchResults.map((r, i) => (
+                  <div key={i} className="search-drop-item" onMouseDown={() => selectPrediction(r)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:14, height:14, flexShrink:0, color:'var(--paper-faint)' }}>
+                      <path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>
+                    </svg>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13.5, color:'var(--paper)', fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                        {r.structured_formatting?.main_text || r.description}
+                      </div>
+                      {r.structured_formatting?.secondary_text && (
+                        <div style={{ fontSize:11.5, color:'var(--paper-faint)', marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                          {r.structured_formatting.secondary_text}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {!searchLoading && searchResults.length === 0 && (
+                  <div className="search-drop-item" style={{ color:'var(--paper-faint)', fontSize:13 }}>No results found</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {showNearby && !showDropdown && (
           <div className="chip-row">
@@ -642,53 +709,39 @@ export default function Maps() {
       )}
 
       {navActive && (
-        <div className="nav-sheet">
+        <div className="nav-bottom-strip">
           {routeLoading ? (
-            <div style={{ display:'flex', alignItems:'center', gap:10, padding:'18px 0' }}>
-              <span className="spinner" style={{ width:16, height:16, borderColor:'rgba(59,130,246,0.2)', borderTopColor:'#3B82F6' }} />
-              <span style={{ fontSize:13, color:'var(--paper-dim)' }}>Calculating route…</span>
-            </div>
-          ) : routeInfo && (
             <>
-              <div className="glass-stream-banner">
-                <div className="glass-stream-dot" />
-                <div className="glass-stream-text">
-                  <div className="glass-stream-title">Streaming to glass HUD</div>
-                  <div className="glass-stream-sub">All turns appear on your lens automatically</div>
-                </div>
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:18, height:18, stroke:'var(--sage-bright)', flexShrink:0 }}>
+              <span className="spinner" style={{ width:14, height:14, borderColor:'rgba(59,130,246,0.2)', borderTopColor:'#3B82F6', flexShrink:0 }}/>
+              <span style={{ fontSize:12, color:'rgba(255,255,255,0.6)', flex:1, marginLeft:8 }}>Calculating route…</span>
+            </>
+          ) : routeInfo ? (
+            <>
+              <div className="nav-strip-glass" title="Streaming to glass HUD">
+                <span className="nav-strip-dot"/>
+                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:13, height:13, stroke:'#10B981', flexShrink:0 }}>
                   <ellipse cx="7" cy="12" rx="4" ry="3.2"/><ellipse cx="17" cy="12" rx="4" ry="3.2"/><path d="M11 11c.6-1 1.4-1 2 0"/>
                 </svg>
               </div>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14 }}>
-                <div>
-                  <div style={{ fontSize:16, fontWeight:700, color:'var(--paper)', fontFamily:'Space Grotesk,sans-serif' }}>{navPlace?.name}</div>
-                  <div style={{ fontSize:12, color:'var(--paper-faint)', marginTop:2 }}>{routeInfo.dur} · {routeInfo.dist}</div>
+              <div className="nav-strip-data">
+                <div className="nav-strip-item">
+                  <span className="nav-strip-val">{routeInfo.dur}</span>
+                  <span className="nav-strip-lbl">ETA</span>
                 </div>
-                <div style={{ display:'flex', gap:6 }}>
-                  <button className={`nav-mode-btn${travelMode==='driving'?' active':''}`} onClick={() => setTravelMode('driving')} style={{ padding:'7px 12px' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                  </button>
-                  <button className={`nav-mode-btn${travelMode==='walking'?' active':''}`} onClick={() => setTravelMode('walking')} style={{ padding:'7px 12px' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13" cy="4" r="2"/><path d="M9.5 9.5L11 16l-3 2M14.5 9.5L13 16l3 2M9.5 9.5c1-1.5 3-2 5 0"/></svg>
-                  </button>
+                <div className="nav-strip-sep"/>
+                <div className="nav-strip-item">
+                  <span className="nav-strip-val">{routeInfo.dist}</span>
+                  <span className="nav-strip-lbl">DIST</span>
+                </div>
+                <div className="nav-strip-sep"/>
+                <div className="nav-strip-item">
+                  <span className="nav-strip-val">{arriveTime}</span>
+                  <span className="nav-strip-lbl">ARRIVE</span>
                 </div>
               </div>
-              {currentStep && (
-                <div className="current-turn-card">
-                  <div className="current-turn-label">NOW ON GLASS</div>
-                  <div className="current-turn-text">{stripHtml(currentStep.instructions)}</div>
-                  {nextStep && <div className="current-turn-next">then → {stripHtml(nextStep.instructions)}</div>}
-                </div>
-              )}
-              <div className="nav-stats" style={{ marginTop:12 }}>
-                <div className="nav-stat"><div className="nav-stat-label">ETA</div><div className="nav-stat-value">{routeInfo.dur}</div></div>
-                <div className="nav-stat"><div className="nav-stat-label">DISTANCE</div><div className="nav-stat-value">{routeInfo.dist}</div></div>
-                <div className="nav-stat"><div className="nav-stat-label">ARRIVE</div><div className="nav-stat-value">{arriveTime}</div></div>
-              </div>
-              <button className="btn-end-nav" onClick={endNav}>End route</button>
             </>
-          )}
+          ) : null}
+          <button className="nav-strip-end-btn" onClick={endNav}>End</button>
         </div>
       )}
     </div>
