@@ -1308,25 +1308,14 @@ export default function GlassHUD() {
             listening…
           </div>
 
-          {/* Voice listening ring — tap to cancel */}
-          <div className={`subvocal-indicator${hudMode === 'listening' ? ' visible' : ''}`}
-            onClick={() => {
-              if (hudMode !== 'listening') return;
-              try { voiceRecogRef.current?.abort(); } catch {}
-              endSession();
-              setHudMode('idle');
-              setVoiceActive(false);
-              voiceActiveRef.current = false;
-              setVoiceTranscript('');
-              setTimeout(startWakeListener, 400);
-            }}
-            style={{ cursor: hudMode === 'listening' ? 'pointer' : 'default' }}>
+          {/* Voice listening ring */}
+          <div className={`subvocal-indicator${hudMode === 'listening' ? ' visible' : ''}`}>
             <div className="sv-ring">
               <div className="sv-wave">
                 {[...Array(5)].map((_, i) => <div key={i} className="sv-bar" />)}
               </div>
             </div>
-            <div className="sv-label">listening… <span style={{ opacity:0.5, fontSize:'0.8em' }}>tap to cancel</span></div>
+            <div className="sv-label">listening…</div>
           </div>
 
           {/* Query text */}
@@ -1374,12 +1363,7 @@ export default function GlassHUD() {
                             if (name === 'Fitness') { setShowFitness(true); return; }
                             if (name === 'Spotify') { triggerMusic(); return; }
                             if (name === 'Maps')    { triggerNav(); return; }
-                            if (name === 'Calls')   {
-                              // end any active session first so voice query won't loop on no-speech
-                              endSession();
-                              startVoiceQuery();
-                              return;
-                            }
+                            if (name === 'Calls')   { endSession(); startVoiceQuery(); return; }
                             if (name === 'Camera')  {
                               setShowScan(true);
                               setHudMode('processing');
@@ -1398,10 +1382,7 @@ export default function GlassHUD() {
                               }
                               return;
                             }
-                            // Social tiles — just activate voice query with a clean slate
-                            // (no real app integration yet; user says what they need via Hey ARVO)
-                            endSession();
-                            startVoiceQuery();
+                            // Social tiles (WhatsApp, Instagram, etc.) — no integration yet, do nothing
                           }}
                         >
                           <div className="app-tile-icon"><AppIcon app={name} size={22} /></div>
