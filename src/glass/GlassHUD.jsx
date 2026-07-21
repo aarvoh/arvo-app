@@ -1334,7 +1334,7 @@ export default function GlassHUD() {
                             if (name === 'Fitness') { setShowFitness(true); return; }
                             if (name === 'Spotify') { triggerMusic(); return; }
                             if (name === 'Maps')    { triggerNav(); return; }
-                            if (name === 'Calls')   { triggerCall(); return; }
+                            if (name === 'Calls')   { startVoiceQuery(); return; }
                             if (name === 'Camera')  {
                               setShowScan(true);
                               setHudMode('processing');
