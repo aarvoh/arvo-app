@@ -1,136 +1,114 @@
 import { useState, useEffect, useRef } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { Loader } from '@googlemaps/js-api-loader';
 import useLiveClock from '../hooks/useLiveClock';
 import glassChannel from '../lib/glassChannel';
 
-delete L.Icon.Default.prototype._getIconUrl;
+const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
-const USER_ICON = L.divIcon({
-  className: '',
-  html: `<div style="width:20px;height:20px;border-radius:50%;background:#3B82F6;border:3px solid #fff;box-shadow:0 0 0 4px rgba(59,130,246,0.25),0 2px 10px rgba(0,0,0,0.4)"></div>`,
-  iconSize: [20, 20], iconAnchor: [10, 10],
-});
-const DEST_ICON = L.divIcon({
-  className: '',
-  html: `<svg width="32" height="42" viewBox="0 0 30 38"><path d="M15 2C9.5 2 5 6.5 5 12c0 7.5 10 18 10 18s10-10.5 10-18C25 6.5 20.5 2 15 2z" fill="#EF4444" stroke="#fff" stroke-width="1.5"/><circle cx="15" cy="12" r="4" fill="#fff"/></svg>`,
-  iconSize: [32, 42], iconAnchor: [16, 42],
-});
-function makePlaceIcon(color = '#10B981') {
-  return L.divIcon({
-    className: '',
-    html: `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
-    iconSize: [10, 10], iconAnchor: [5, 5],
-  });
-}
+const MAP_STYLE = [
+  { elementType: 'geometry',            stylers: [{ color: '#0f1117' }] },
+  { elementType: 'labels.icon',         stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill',    stylers: [{ color: '#8a9bb0' }] },
+  { elementType: 'labels.text.stroke',  stylers: [{ color: '#0f1117' }] },
+  { featureType: 'administrative',      elementType: 'geometry',              stylers: [{ color: '#1a1d2e' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#bdc1d4' }] },
+  { featureType: 'poi',                 stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.park',            elementType: 'geometry',              stylers: [{ color: '#181f2d' }] },
+  { featureType: 'road',                elementType: 'geometry',              stylers: [{ color: '#1e2235' }] },
+  { featureType: 'road',                elementType: 'geometry.stroke',       stylers: [{ color: '#111827' }] },
+  { featureType: 'road',                elementType: 'labels.text.fill',      stylers: [{ color: '#8a9bb0' }] },
+  { featureType: 'road.arterial',       elementType: 'geometry',              stylers: [{ color: '#222c44' }] },
+  { featureType: 'road.highway',        elementType: 'geometry',              stylers: [{ color: '#2c3d6b' }] },
+  { featureType: 'road.highway',        elementType: 'geometry.stroke',       stylers: [{ color: '#1a1d2e' }] },
+  { featureType: 'road.highway',        elementType: 'labels.text.fill',      stylers: [{ color: '#f3d19c' }] },
+  { featureType: 'transit',             stylers: [{ visibility: 'off' }] },
+  { featureType: 'water',               elementType: 'geometry',              stylers: [{ color: '#06080f' }] },
+  { featureType: 'water',               elementType: 'labels.text.fill',      stylers: [{ color: '#515c6d' }] },
+];
 
 const CHIPS = [
-  { label: '🍽 Eat',      overpass: 'amenity', value: 'restaurant|cafe|fast_food|food_court', color: '#F59E0B' },
-  { label: '☕ Café',     overpass: 'amenity', value: 'cafe',                                  color: '#A78BFA' },
-  { label: '🏥 Hospital', overpass: 'amenity', value: 'hospital|clinic|pharmacy|doctors',      color: '#10B981' },
-  { label: '⛽ Fuel',     overpass: 'amenity', value: 'fuel',                                  color: '#EF4444' },
-  { label: '🏦 ATM',      overpass: 'amenity', value: 'atm|bank',                              color: '#3B82F6' },
-  { label: '🛒 Shop',     overpass: 'shop',    value: 'supermarket|convenience|mall',          color: '#FBBF24' },
+  { label: '🍽 Eat',      type: 'restaurant',  color: '#F59E0B' },
+  { label: '☕ Café',     type: 'cafe',         color: '#A78BFA' },
+  { label: '🏥 Hospital', type: 'hospital',     color: '#10B981' },
+  { label: '⛽ Fuel',     type: 'gas_station',  color: '#EF4444' },
+  { label: '🏦 ATM',      type: 'atm',          color: '#3B82F6' },
+  { label: '🛒 Shop',     type: 'supermarket',  color: '#FBBF24' },
 ];
 
 function haversine([lat1, lon1], [lat2, lon2]) {
-  const R = 6371, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  const R = 6371, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
   return R * 2 * Math.asin(Math.sqrt(a));
 }
-function fmtDist(km) { return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`; }
-function fmtStep(step) {
-  if (!step) return '';
-  const mod  = step.maneuver?.modifier?.replace(/_/g, ' ');
-  const type = step.maneuver?.type;
-  if (type === 'depart') return `Head onto ${step.name || 'the road'}`;
-  if (type === 'arrive') return 'Arrive at destination';
-  return mod ? `${mod.charAt(0).toUpperCase() + mod.slice(1)} onto ${step.name || 'road'}` : `Continue on ${step.name || 'road'}`;
-}
-function placeLabel(tags) {
-  const m = { restaurant:'Restaurant', cafe:'Café', hospital:'Hospital', pharmacy:'Pharmacy',
-    bank:'Bank', fuel:'Petrol Station', bar:'Bar', fast_food:'Fast Food', supermarket:'Supermarket',
-    mall:'Mall', park:'Park', hotel:'Hotel', attraction:'Attraction', museum:'Museum',
-    clinic:'Clinic', atm:'ATM', doctors:'Doctor', food_court:'Food Court', convenience:'Store' };
-  return m[tags.amenity] || m[tags.shop] || m[tags.tourism] || m[tags.leisure] || tags.amenity || tags.shop || 'Place';
-}
-function formatAddress(addr) {
-  if (!addr) return '';
-  return [addr.road, addr.suburb, addr.city_district].filter(Boolean).slice(0, 2).join(', ');
+function fmtDist(km) { return km < 1 ? `${Math.round(km*1000)} m` : `${km.toFixed(1)} km`; }
+function stripHtml(html) { return (html||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim(); }
+
+function stepInstruction(step) {
+  const m = step?.maneuver || '';
+  if (!m || m === 'straight') return 'Continue';
+  if (m.includes('uturn'))  return 'U-turn';
+  if (m.includes('left'))   return m.includes('sharp') ? 'Sharp left'  : m.includes('slight') ? 'Slight left'  : 'Left';
+  if (m.includes('right'))  return m.includes('sharp') ? 'Sharp right' : m.includes('slight') ? 'Slight right' : 'Right';
+  if (m.includes('merge'))  return 'Merge';
+  if (m.includes('fork'))   return m.includes('left') ? 'Keep left' : 'Keep right';
+  if (m === 'roundabout-left' || m === 'roundabout-right') return 'Roundabout';
+  return 'Continue';
 }
 
-async function fetchNearby(lat, lon) {
-  const q = `[out:json][timeout:18];(
-    node["amenity"~"restaurant|cafe|hospital|pharmacy|bank|fuel|bar|fast_food|atm|clinic"](around:1200,${lat},${lon});
-    node["shop"~"supermarket|mall|convenience"](around:1000,${lat},${lon});
-    node["tourism"~"hotel|attraction|museum"](around:1200,${lat},${lon});
-  );out body 40;`;
-  const res  = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: q });
-  const data = await res.json();
-  return (data.elements || []).filter(e => e.tags?.name && e.lat && e.lon)
-    .map(e => ({ name: e.tags.name, label: placeLabel(e.tags), coords: [e.lat, e.lon] }));
+function stepStreet(step) {
+  const txt = stripHtml(step?.instructions || '');
+  const m = txt.match(/\bonto\s+(.+)$/) || txt.match(/\btoward\s+(.+)$/);
+  return m ? m[1].replace(/\.$/, '') : txt.split(' ').slice(-3).join(' ');
 }
-async function fetchByCategory(chip, lat, lon) {
-  const q   = `[out:json][timeout:15];node["${chip.overpass}"~"${chip.value}"](around:1500,${lat},${lon});out body 30;`;
-  const res  = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: q });
-  const data = await res.json();
-  return (data.elements || []).filter(e => e.tags?.name && e.lat && e.lon)
-    .map(e => ({ name: e.tags.name, label: placeLabel(e.tags), coords: [e.lat, e.lon] }));
+
+function makePlaceDot(google, color) {
+  return {
+    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+      `<svg width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="6" r="5" fill="${color}" stroke="white" stroke-width="1.5"/></svg>`
+    ),
+    scaledSize: new google.maps.Size(12, 12),
+    anchor: new google.maps.Point(6, 6),
+  };
 }
-async function geocodeNear(query, userCoords) {
-  if (!query.trim()) return [];
-  let url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=7&addressdetails=1`;
-  if (userCoords) {
-    const [lat, lon] = userCoords;
-    url += `&viewbox=${lon-0.3},${lat+0.3},${lon+0.3},${lat-0.3}&bounded=0`;
-  }
-  return (await fetch(url, { headers: { 'Accept-Language': 'en' } })).json();
-}
-async function reverseGeocode(lat, lon) {
-  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, { headers: { 'Accept-Language': 'en' } });
-  return (await res.json()).address;
-}
-async function fetchRoute(from, to, mode) {
-  try {
-    // OSRM public server only has the car profile — use it for geometry & distance,
-    // then recalculate duration for walking at 5 km/h (1.389 m/s)
-    const data = await (await fetch(`https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&steps=true`)).json();
-    if (data.code === 'Ok' && data.routes?.length) {
-      const route = { ...data.routes[0] };
-      if (mode === 'walking') route.duration = route.distance / 1.389;
-      return route;
-    }
-  } catch {}
-  return null;
+function makeDestIcon(google) {
+  return {
+    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+      `<svg width="32" height="42" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg"><path d="M15 2C9.5 2 5 6.5 5 12c0 7.5 10 18 10 18s10-10.5 10-18C25 6.5 20.5 2 15 2z" fill="#EF4444" stroke="white" stroke-width="1.5"/><circle cx="15" cy="12" r="4" fill="white"/></svg>`
+    ),
+    scaledSize: new google.maps.Size(32, 42),
+    anchor: new google.maps.Point(16, 42),
+  };
 }
 
 export default function Maps() {
   const time = useLiveClock();
 
-  // map refs
-  const mapRef            = useRef(null);
-  const mapInstanceRef    = useRef(null);
-  const userMarkerRef     = useRef(null);
-  const accuracyRef       = useRef(null);
-  const destMarkerRef     = useRef(null);
-  const routeLayerRef     = useRef(null);
-  const placeLayerRef     = useRef(null);
-  const searchTimer       = useRef(null);
-  const userCoordsRef     = useRef(null);
+  const mapRef                 = useRef(null);
+  const mapInstanceRef         = useRef(null);
+  const googleRef              = useRef(null);
+  const userMarkerRef          = useRef(null);
+  const accuracyCircleRef      = useRef(null);
+  const destMarkerRef          = useRef(null);
+  const placeMarkersRef        = useRef([]);
+  const directionsServiceRef   = useRef(null);
+  const directionsRendererRef  = useRef(null);
+  const placesServiceRef       = useRef(null);
+  const geocoderRef            = useRef(null);
+  const autocompleteServiceRef = useRef(null);
+  const userCoordsRef          = useRef(null);
+  const navActiveRef           = useRef(false);
+  const stepsRef               = useRef([]);
+  const currentStepIdxRef      = useRef(0);
+  const followModeRef          = useRef(false);
+  const searchTimer            = useRef(null);
 
-  // nav tracking refs (used inside watchPosition)
-  const navActiveRef      = useRef(false);
-  const stepsRef          = useRef([]);
-  const currentStepIdxRef = useRef(0);
-  const followModeRef     = useRef(false);
-
-  // location
-  const [userCoords,      setUserCoords]      = useState(null);
+  const [mapReady,        setMapReady]        = useState(false);
   const [locStatus,       setLocStatus]       = useState('loading');
+  const [userCoords,      setUserCoords]      = useState(null);
   const [currentAddress,  setCurrentAddress]  = useState('');
   const [followMode,      setFollowMode]      = useState(false);
+  const [battery,         setBattery]         = useState(null);
 
-  // nearby places
   const [nearbyPlaces,    setNearbyPlaces]    = useState([]);
   const [displayedPlaces, setDisplayedPlaces] = useState([]);
   const [nearbyLoading,   setNearbyLoading]   = useState(false);
@@ -138,18 +116,15 @@ export default function Maps() {
   const [activeChip,      setActiveChip]      = useState(null);
   const [chipLoading,     setChipLoading]     = useState(false);
 
-  // search
   const [searchQuery,     setSearchQuery]     = useState('');
   const [searchResults,   setSearchResults]   = useState([]);
   const [searchLoading,   setSearchLoading]   = useState(false);
   const [searchOpen,      setSearchOpen]      = useState(false);
 
-  // place preview (shown BEFORE navigation starts)
   const [selectedPlace,   setSelectedPlace]   = useState(null);
-  const [preview,         setPreview]         = useState(null); // { driveMin, driveDist, walkMin, walkDist }
+  const [preview,         setPreview]         = useState(null);
   const [previewLoading,  setPreviewLoading]  = useState(false);
 
-  // navigation
   const [navActive,       setNavActive]       = useState(false);
   const [navPlace,        setNavPlace]        = useState(null);
   const [routeInfo,       setRouteInfo]       = useState(null);
@@ -157,133 +132,205 @@ export default function Maps() {
   const [travelMode,      setTravelMode]      = useState('driving');
   const [currentStepIdx,  setCurrentStepIdx]  = useState(0);
 
-  // keep refs in sync
   useEffect(() => { navActiveRef.current = navActive; }, [navActive]);
-  useEffect(() => { stepsRef.current = routeInfo?.steps || []; currentStepIdxRef.current = 0; setCurrentStepIdx(0); }, [routeInfo]);
   useEffect(() => { followModeRef.current = followMode; }, [followMode]);
+  useEffect(() => { stepsRef.current = routeInfo?.steps || []; currentStepIdxRef.current = 0; setCurrentStepIdx(0); }, [routeInfo]);
 
-  // ── init map ──
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
-    const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false }).setView([20, 78], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '© OpenStreetMap © CARTO', maxZoom: 19,
-    }).addTo(map);
-    placeLayerRef.current = L.layerGroup().addTo(map);
-    map.on('dragstart', () => { if (followModeRef.current) { setFollowMode(false); followModeRef.current = false; } });
-    mapInstanceRef.current = map;
-    return () => { map.remove(); mapInstanceRef.current = null; };
+    if (!navigator.getBattery) return;
+    navigator.getBattery().then(b => {
+      setBattery(Math.round(b.level * 100));
+      b.addEventListener('levelchange', () => setBattery(Math.round(b.level * 100)));
+    });
   }, []);
 
-  // ── continuous location + live step tracking ──
+  // ── init Google Maps ──
+  useEffect(() => {
+    if (!MAPS_KEY) { setLocStatus('no-key'); return; }
+    const loader = new Loader({ apiKey: MAPS_KEY, version: 'weekly', libraries: ['places'] });
+    loader.load().then(google => {
+      googleRef.current = google;
+      if (!mapRef.current) return;
+      const map = new google.maps.Map(mapRef.current, {
+        center: { lat: 20, lng: 78 }, zoom: 5,
+        styles: MAP_STYLE, disableDefaultUI: true,
+        gestureHandling: 'greedy', clickableIcons: false,
+      });
+      mapInstanceRef.current = map;
+      directionsServiceRef.current  = new google.maps.DirectionsService();
+      directionsRendererRef.current = new google.maps.DirectionsRenderer({
+        suppressMarkers: true,
+        polylineOptions: { strokeColor: '#3B82F6', strokeWeight: 5, strokeOpacity: 0.9 },
+        map,
+      });
+      placesServiceRef.current       = new google.maps.places.PlacesService(map);
+      geocoderRef.current            = new google.maps.Geocoder();
+      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+      map.addListener('dragstart', () => {
+        if (followModeRef.current) { setFollowMode(false); followModeRef.current = false; }
+      });
+      setMapReady(true);
+    }).catch(() => setLocStatus('error'));
+  }, []);
+
+  // ── GPS watch ──
   useEffect(() => {
     if (!navigator.geolocation) { setLocStatus('denied'); return; }
-    const id = navigator.geolocation.watchPosition(
-      (pos) => {
-        const coords = [pos.coords.latitude, pos.coords.longitude];
-        setUserCoords(coords); userCoordsRef.current = coords; setLocStatus('ok');
-        const map = mapInstanceRef.current; if (!map) return;
+    const id = navigator.geolocation.watchPosition(pos => {
+      const coords = [pos.coords.latitude, pos.coords.longitude];
+      setUserCoords(coords); userCoordsRef.current = coords; setLocStatus('ok');
+      const google = googleRef.current; const map = mapInstanceRef.current;
+      if (!google || !map) return;
+      const latlng = new google.maps.LatLng(coords[0], coords[1]);
 
-        if (!userMarkerRef.current) {
-          userMarkerRef.current = L.marker(coords, { icon: USER_ICON, zIndexOffset: 1000 }).addTo(map);
-          map.setView(coords, 16);
-        } else { userMarkerRef.current.setLatLng(coords); }
+      if (!userMarkerRef.current) {
+        userMarkerRef.current = new google.maps.Marker({
+          position: latlng, map,
+          icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#3B82F6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 },
+          zIndex: 1000,
+        });
+        map.setCenter(latlng); map.setZoom(16);
+      } else { userMarkerRef.current.setPosition(latlng); }
 
-        if (accuracyRef.current) accuracyRef.current.remove();
-        if (pos.coords.accuracy < 200) {
-          accuracyRef.current = L.circle(coords, { radius: pos.coords.accuracy, color: '#3B82F6', fillColor: '#3B82F6', fillOpacity: 0.06, weight: 1, opacity: 0.3 }).addTo(map);
-        }
+      if (accuracyCircleRef.current) accuracyCircleRef.current.setMap(null);
+      if (pos.coords.accuracy < 200) {
+        accuracyCircleRef.current = new google.maps.Circle({
+          center: latlng, radius: pos.coords.accuracy, map,
+          fillColor: '#3B82F6', fillOpacity: 0.06,
+          strokeColor: '#3B82F6', strokeOpacity: 0.3, strokeWeight: 1,
+        });
+      }
+      if (followModeRef.current) map.panTo(latlng);
 
-        if (followModeRef.current) map.panTo(coords, { animate: true, duration: 1.0 });
-
-        // live step advancement → push to glass
-        if (navActiveRef.current) {
-          const steps = stepsRef.current;
-          const idx   = currentStepIdxRef.current;
-          if (idx + 1 < steps.length) {
-            const next = steps[idx + 1];
-            if (next?.maneuver?.location) {
-              const [slon, slat] = next.maneuver.location;
-              if (haversine(coords, [slat, slon]) * 1000 < 40) {
-                const ni = idx + 1;
-                currentStepIdxRef.current = ni; setCurrentStepIdx(ni);
-                const s = steps[ni];
-                const mod = s.maneuver?.modifier?.replace(/_/g, ' ');
-                const type = s.maneuver?.type;
-                glassChannel?.postMessage({
-                  type: 'nav_turn',
-                  instruction: type === 'arrive' ? 'Arrive at destination' : mod ? mod.charAt(0).toUpperCase() + mod.slice(1) : 'Continue',
-                  street: s.name || '',
-                  distance: s.distance < 1000 ? `${Math.round(s.distance)} m` : `${(s.distance/1000).toFixed(1)} km`,
-                });
-              }
-            }
+      if (navActiveRef.current) {
+        const steps = stepsRef.current; const idx = currentStepIdxRef.current;
+        if (idx + 1 < steps.length) {
+          const ns = steps[idx + 1].start_location;
+          if (haversine(coords, [ns.lat(), ns.lng()]) * 1000 < 40) {
+            const ni = idx + 1;
+            currentStepIdxRef.current = ni; setCurrentStepIdx(ni);
+            glassChannel?.postMessage({
+              type: 'nav_turn',
+              instruction: stepInstruction(steps[ni]),
+              street: stepStreet(steps[ni]),
+              distance: steps[ni].distance.text,
+            });
           }
         }
-      },
-      () => setLocStatus('denied'),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 2000 }
-    );
+      }
+    }, () => setLocStatus('denied'), { enableHighAccuracy: true, timeout: 15000, maximumAge: 2000 });
     return () => navigator.geolocation.clearWatch(id);
   }, []);
 
-  // ── fetch nearby once ──
+  // ── fetch nearby (needs both coords AND map ready) ──
   useEffect(() => {
-    if (!userCoords || nearbyFetched) return;
+    if (!userCoords || nearbyFetched || !mapReady) return;
+    const google = googleRef.current; const places = placesServiceRef.current; const geocoder = geocoderRef.current;
+    if (!google || !places || !geocoder) return;
     setNearbyFetched(true); setNearbyLoading(true);
-    Promise.all([fetchNearby(userCoords[0], userCoords[1]), reverseGeocode(userCoords[0], userCoords[1])])
-      .then(([places, addr]) => {
-        const sorted = places.map(p => ({ ...p, distKm: haversine(userCoords, p.coords) })).sort((a, b) => a.distKm - b.distKm).slice(0, 20);
-        setNearbyPlaces(sorted); setDisplayedPlaces(sorted);
-        setCurrentAddress(formatAddress(addr)); drawPlaceMarkers(sorted, '#10B981');
-      }).catch(() => {}).finally(() => setNearbyLoading(false));
-  }, [userCoords, nearbyFetched]);
+    const latlng = new google.maps.LatLng(userCoords[0], userCoords[1]);
 
-  function drawPlaceMarkers(places, color) {
-    const layer = placeLayerRef.current; if (!layer) return;
-    layer.clearLayers();
+    geocoder.geocode({ location: latlng }, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const c = results[0].address_components;
+        const sub  = c.find(x => x.types.includes('sublocality_level_1'))?.long_name;
+        const city = c.find(x => x.types.includes('locality'))?.long_name;
+        setCurrentAddress([sub, city].filter(Boolean).join(', '));
+      }
+    });
+
+    places.nearbySearch({ location: latlng, radius: 1500, type: 'establishment' }, (results, status) => {
+      setNearbyLoading(false);
+      if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+        const mapped = results.filter(r => r.name && r.geometry?.location).map(r => ({
+          name: r.name, label: (r.types?.[0] || 'place').replace(/_/g, ' '),
+          coords: [r.geometry.location.lat(), r.geometry.location.lng()],
+          distKm: haversine(userCoords, [r.geometry.location.lat(), r.geometry.location.lng()]),
+          placeId: r.place_id,
+        })).sort((a, b) => a.distKm - b.distKm).slice(0, 20);
+        setNearbyPlaces(mapped); setDisplayedPlaces(mapped);
+        drawPlaceMarkers(mapped, '#10B981', google);
+      }
+    });
+  }, [userCoords, nearbyFetched, mapReady]);
+
+  function drawPlaceMarkers(places, color, google) {
+    placeMarkersRef.current.forEach(m => m.setMap(null));
+    placeMarkersRef.current = [];
+    const map = mapInstanceRef.current; if (!map || !google) return;
     places.forEach(p => {
-      const m = L.marker(p.coords, { icon: makePlaceIcon(color) });
-      m.bindTooltip(p.name, { direction: 'top', offset: [0, -6], className: 'map-tooltip' });
-      m.on('click', () => selectPlace(p)); layer.addLayer(m);
+      const marker = new google.maps.Marker({
+        position: { lat: p.coords[0], lng: p.coords[1] }, map,
+        icon: makePlaceDot(google, color), title: p.name,
+      });
+      marker.addListener('click', () => selectPlace(p));
+      placeMarkersRef.current.push(marker);
     });
   }
 
   async function handleChip(chip) {
     const coords = userCoordsRef.current; if (!coords) return;
-    if (activeChip === chip.label) { setActiveChip(null); setDisplayedPlaces(nearbyPlaces); drawPlaceMarkers(nearbyPlaces, '#10B981'); return; }
+    const google = googleRef.current; const places = placesServiceRef.current;
+    if (!google || !places) return;
+    if (activeChip === chip.label) {
+      setActiveChip(null); setDisplayedPlaces(nearbyPlaces); drawPlaceMarkers(nearbyPlaces, '#10B981', google); return;
+    }
     setActiveChip(chip.label); setChipLoading(true);
-    try {
-      const results = await fetchByCategory(chip, coords[0], coords[1]);
-      const sorted  = results.map(p => ({ ...p, distKm: haversine(coords, p.coords) })).sort((a, b) => a.distKm - b.distKm).slice(0, 20);
-      setDisplayedPlaces(sorted); drawPlaceMarkers(sorted, chip.color);
-    } catch {}
-    setChipLoading(false);
+    const latlng = new google.maps.LatLng(coords[0], coords[1]);
+    places.nearbySearch({ location: latlng, radius: 1500, type: chip.type }, (results, status) => {
+      setChipLoading(false);
+      if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+        const mapped = results.filter(r => r.name && r.geometry?.location).map(r => ({
+          name: r.name, label: chip.label.split(' ').slice(1).join(' '),
+          coords: [r.geometry.location.lat(), r.geometry.location.lng()],
+          distKm: haversine(coords, [r.geometry.location.lat(), r.geometry.location.lng()]),
+          placeId: r.place_id,
+        })).sort((a, b) => a.distKm - b.distKm).slice(0, 20);
+        setDisplayedPlaces(mapped); drawPlaceMarkers(mapped, chip.color, google);
+      }
+    });
   }
 
-  // ── PLACE PREVIEW — tap a place, see time+distance BEFORE navigating ──
+  function getRoute(from, to, mode) {
+    return new Promise(resolve => {
+      const google = googleRef.current; const service = directionsServiceRef.current;
+      if (!google || !service) { resolve(null); return; }
+      service.route({
+        origin: new google.maps.LatLng(from[0], from[1]),
+        destination: new google.maps.LatLng(to[0], to[1]),
+        travelMode: mode === 'walking' ? google.maps.TravelMode.WALKING : google.maps.TravelMode.DRIVING,
+      }, (result, status) => resolve(status === 'OK' ? result : null));
+    });
+  }
+
   async function selectPlace(place) {
     const from = userCoordsRef.current;
     setSelectedPlace(place); setPreview(null); setPreviewLoading(true);
-
-    const map = mapInstanceRef.current;
-    if (destMarkerRef.current) destMarkerRef.current.remove();
-    if (map) destMarkerRef.current = L.marker(place.coords, { icon: DEST_ICON }).addTo(map);
-    if (map && from) map.fitBounds(L.latLngBounds([from, place.coords]), { padding: [120, 60], maxZoom: 16 });
-
+    const google = googleRef.current; const map = mapInstanceRef.current;
+    if (destMarkerRef.current) destMarkerRef.current.setMap(null);
+    if (google && map) {
+      destMarkerRef.current = new google.maps.Marker({
+        position: { lat: place.coords[0], lng: place.coords[1] }, map, icon: makeDestIcon(google),
+      });
+      if (from) {
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend({ lat: from[0], lng: from[1] });
+        bounds.extend({ lat: place.coords[0], lng: place.coords[1] });
+        map.fitBounds(bounds, { top: 120, right: 60, bottom: 300, left: 60 });
+      }
+    }
     if (!from) { setPreviewLoading(false); return; }
-
     try {
-      const [driveRoute, walkRoute] = await Promise.all([
-        fetchRoute(from, place.coords, 'driving'),
-        fetchRoute(from, place.coords, 'walking'),
+      const [driveResult, walkResult] = await Promise.all([
+        getRoute(from, place.coords, 'driving'),
+        getRoute(from, place.coords, 'walking'),
       ]);
-      const fmt = (r) => r ? (r.distance < 1000 ? `${Math.round(r.distance)} m` : `${(r.distance/1000).toFixed(1)} km`) : null;
+      const leg = r => r?.routes?.[0]?.legs?.[0];
       setPreview({
-        driveMin:  driveRoute ? Math.round(driveRoute.duration / 60) : null,
-        driveDist: fmt(driveRoute),
-        walkMin:   walkRoute  ? Math.round(walkRoute.duration / 60)  : null,
-        walkDist:  fmt(walkRoute),
+        driveMin:  leg(driveResult) ? Math.round(leg(driveResult).duration.value / 60) : null,
+        driveDist: leg(driveResult)?.distance.text || null,
+        walkMin:   leg(walkResult)  ? Math.round(leg(walkResult).duration.value  / 60) : null,
+        walkDist:  leg(walkResult)?.distance.text  || null,
       });
     } catch {}
     setPreviewLoading(false);
@@ -291,14 +338,18 @@ export default function Maps() {
 
   function dismissPreview() {
     setSelectedPlace(null); setPreview(null);
-    if (destMarkerRef.current) { destMarkerRef.current.remove(); destMarkerRef.current = null; }
-    if (userCoordsRef.current) mapInstanceRef.current?.setView(userCoordsRef.current, 16);
+    if (destMarkerRef.current) { destMarkerRef.current.setMap(null); destMarkerRef.current = null; }
+    if (userCoordsRef.current) {
+      mapInstanceRef.current?.setCenter({ lat: userCoordsRef.current[0], lng: userCoordsRef.current[1] });
+      mapInstanceRef.current?.setZoom(16);
+    }
   }
 
-  // ── START NAVIGATION ──
   async function startNav(place, mode) {
     const chosenMode = mode || travelMode;
     const from = userCoordsRef.current; if (!from) return;
+    const google = googleRef.current; const map = mapInstanceRef.current;
+    if (!google || !map) return;
 
     setSelectedPlace(null); setPreview(null);
     setNavPlace(place); setNavActive(true); setRouteLoading(true);
@@ -306,46 +357,37 @@ export default function Maps() {
     setFollowMode(true); followModeRef.current = true;
     if (chosenMode !== travelMode) setTravelMode(chosenMode);
 
-    const map = mapInstanceRef.current;
-    if (destMarkerRef.current) destMarkerRef.current.remove();
-    if (routeLayerRef.current) routeLayerRef.current.remove();
-    destMarkerRef.current = L.marker(place.coords, { icon: DEST_ICON }).addTo(map);
+    if (destMarkerRef.current) destMarkerRef.current.setMap(null);
+    directionsRendererRef.current?.setMap(null);
+    directionsRendererRef.current?.setMap(map);
+    destMarkerRef.current = new google.maps.Marker({
+      position: { lat: place.coords[0], lng: place.coords[1] }, map, icon: makeDestIcon(google),
+    });
 
-    const route = await fetchRoute(from, place.coords, chosenMode);
+    const result = await getRoute(from, place.coords, chosenMode);
     setRouteLoading(false);
 
-    if (route) {
-      const durMin = Math.round(route.duration / 60);
-      const dist   = route.distance < 1000 ? `${Math.round(route.distance)} m` : `${(route.distance/1000).toFixed(1)} km`;
-      const dur    = durMin < 1 ? '< 1 min' : `${durMin} min`;
-      const steps  = route.legs?.[0]?.steps || [];
-      setRouteInfo({ dist, dur, durMin, steps });
-
-      const s0  = steps[0];
-      const mod0 = s0?.maneuver?.modifier?.replace(/_/g, ' ');
+    if (result) {
+      directionsRendererRef.current?.setDirections(result);
+      const leg = result.routes[0].legs[0];
+      const steps = leg.steps;
+      setRouteInfo({ dist: leg.distance.text, dur: leg.duration.text, durSec: leg.duration.value, steps });
       glassChannel?.postMessage({
         type: 'nav_start',
-        instruction: mod0 ? mod0.charAt(0).toUpperCase() + mod0.slice(1) : 'Head',
-        street: s0?.name || place.name,
-        distance: s0 ? (s0.distance < 1000 ? `${Math.round(s0.distance)} m` : `${(s0.distance/1000).toFixed(1)} km`) : dist,
-        dest: place.name, eta: dur,
+        instruction: stepInstruction(steps[0]),
+        street: stepStreet(steps[0]),
+        distance: steps[0].distance.text,
+        dest: place.name, eta: leg.duration.text,
       });
-
-      const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-      const group  = L.layerGroup();
-      L.polyline(coords, { color: '#1D4ED8', weight: 10, opacity: 0.35, lineJoin: 'round' }).addTo(group);
-      L.polyline(coords, { color: '#3B82F6', weight: 5,  opacity: 1,   lineJoin: 'round', lineCap: 'round' }).addTo(group);
-      group.addTo(map); routeLayerRef.current = group;
-      map.fitBounds(L.latLngBounds(coords), { padding: [110, 70] });
-      setTimeout(() => { if (userCoordsRef.current && followModeRef.current) map.setView(userCoordsRef.current, 17, { animate: true }); }, 2000);
+      setTimeout(() => {
+        if (userCoordsRef.current && followModeRef.current) {
+          map.setCenter({ lat: userCoordsRef.current[0], lng: userCoordsRef.current[1] });
+          map.setZoom(17);
+        }
+      }, 2000);
     } else {
       const dist = fmtDist(haversine(from, place.coords));
-      setRouteInfo({ dist, dur: '~?', durMin: 0, steps: [] });
-      const group = L.layerGroup();
-      L.polyline([from, place.coords], { color: '#1D4ED8', weight: 8, opacity: 0.35, dashArray: '8 6' }).addTo(group);
-      L.polyline([from, place.coords], { color: '#3B82F6', weight: 4, opacity: 0.8,  dashArray: '8 6' }).addTo(group);
-      group.addTo(map); routeLayerRef.current = group;
-      map.fitBounds(L.latLngBounds([from, place.coords]), { padding: [110, 70] });
+      setRouteInfo({ dist, dur: '~?', durSec: 0, steps: [] });
       glassChannel?.postMessage({ type: 'nav_start', instruction: 'Head', street: place.name, distance: dist, dest: place.name, eta: '~?' });
     }
   }
@@ -358,43 +400,77 @@ export default function Maps() {
   function endNav() {
     setNavActive(false); setNavPlace(null); setRouteInfo(null); setCurrentStepIdx(0);
     setFollowMode(false); followModeRef.current = false;
+    directionsRendererRef.current?.setMap(null);
+    if (destMarkerRef.current) { destMarkerRef.current.setMap(null); destMarkerRef.current = null; }
     glassChannel?.postMessage({ type: 'nav_end' });
-    if (destMarkerRef.current) { destMarkerRef.current.remove(); destMarkerRef.current = null; }
-    if (routeLayerRef.current) { routeLayerRef.current.remove(); routeLayerRef.current = null; }
-    if (userCoordsRef.current) mapInstanceRef.current?.setView(userCoordsRef.current, 16);
+    if (userCoordsRef.current) {
+      mapInstanceRef.current?.setCenter({ lat: userCoordsRef.current[0], lng: userCoordsRef.current[1] });
+      mapInstanceRef.current?.setZoom(16);
+    }
   }
 
   function recenter() {
     const c = userCoordsRef.current; if (!c) return;
-    mapInstanceRef.current?.setView(c, navActive ? 17 : 16, { animate: true });
+    mapInstanceRef.current?.setCenter({ lat: c[0], lng: c[1] });
+    mapInstanceRef.current?.setZoom(navActive ? 17 : 16);
     setFollowMode(true); followModeRef.current = true;
   }
 
+  // ── autocomplete search ──
   useEffect(() => {
     if (!searchQuery.trim()) { setSearchResults([]); setSearchLoading(false); return; }
     setSearchLoading(true); clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(async () => {
-      const results = await geocodeNear(searchQuery, userCoordsRef.current).catch(() => []);
-      setSearchResults(results); setSearchLoading(false);
+    searchTimer.current = setTimeout(() => {
+      const service = autocompleteServiceRef.current; const google = googleRef.current; const coords = userCoordsRef.current;
+      if (!service || !google) { setSearchLoading(false); return; }
+      const req = { input: searchQuery };
+      if (coords) req.locationBias = new google.maps.Circle({ center: new google.maps.LatLng(coords[0], coords[1]), radius: 50000 });
+      service.getPlacePredictions(req, (predictions, status) => {
+        setSearchLoading(false);
+        setSearchResults(status === google.maps.places.PlacesServiceStatus.OK && predictions ? predictions : []);
+      });
     }, 400);
     return () => clearTimeout(searchTimer.current);
   }, [searchQuery]);
 
-  const arriveTime     = routeInfo?.durMin ? new Date(Date.now() + routeInfo.durMin * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--';
-  const currentStep    = routeInfo?.steps?.[currentStepIdx];
-  const nextStep       = routeInfo?.steps?.[currentStepIdx + 1];
-  const showDropdown   = searchOpen && searchQuery.trim() && (searchLoading || searchResults.length > 0);
-  const showNearby     = !navActive && !selectedPlace && !showDropdown;
-  const showPreview    = !navActive && !!selectedPlace;
+  function selectPrediction(pred) {
+    setSearchQuery(''); setSearchOpen(false); setSearchResults([]);
+    const places = placesServiceRef.current; if (!places) return;
+    places.getDetails({ placeId: pred.place_id, fields: ['name', 'geometry', 'types'] }, (place, status) => {
+      if (status === 'OK' && place?.geometry) {
+        selectPlace({
+          name: place.name,
+          label: (place.types?.[0] || 'place').replace(/_/g, ' '),
+          coords: [place.geometry.location.lat(), place.geometry.location.lng()],
+          distKm: userCoordsRef.current ? haversine(userCoordsRef.current, [place.geometry.location.lat(), place.geometry.location.lng()]) : null,
+          placeId: pred.place_id,
+        });
+      }
+    });
+  }
+
+  const currentStep  = routeInfo?.steps?.[currentStepIdx];
+  const nextStep     = routeInfo?.steps?.[currentStepIdx + 1];
+  const arriveTime   = routeInfo?.durSec ? new Date(Date.now() + routeInfo.durSec * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--';
+  const showDropdown = searchOpen && searchQuery.trim() && (searchLoading || searchResults.length > 0);
+  const showNearby   = !navActive && !selectedPlace && !showDropdown;
+  const showPreview  = !navActive && !!selectedPlace;
+
+  if (!MAPS_KEY) return (
+    <div className="view" style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, padding:32 }}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" style={{ width:48, height:48 }}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+      <div style={{ fontSize:15, fontWeight:600, color:'rgba(255,255,255,0.8)' }}>Google Maps key needed</div>
+      <div style={{ fontSize:12, color:'rgba(255,255,255,0.4)', textAlign:'center', lineHeight:1.6 }}>Add VITE_GOOGLE_MAPS_KEY to your .env and Vercel env vars</div>
+    </div>
+  );
 
   return (
     <div className="view">
-      <div ref={mapRef} style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
+      <div ref={mapRef} style={{ position:'absolute', inset:0, zIndex:1 }} />
 
-      {/* zoom / recenter */}
       <div className="map-zoom-controls">
-        <button className="map-zoom-btn" onClick={() => mapInstanceRef.current?.zoomIn()}>+</button>
-        <button className="map-zoom-btn" onClick={() => mapInstanceRef.current?.zoomOut()}>−</button>
+        <button className="map-zoom-btn" onClick={() => mapInstanceRef.current?.setZoom((mapInstanceRef.current.getZoom()||16)+1)}>+</button>
+        <button className="map-zoom-btn" onClick={() => mapInstanceRef.current?.setZoom((mapInstanceRef.current.getZoom()||16)-1)}>−</button>
         <button className="map-zoom-btn" onClick={recenter}
           style={followMode ? { color:'#3B82F6', borderColor:'rgba(59,130,246,0.4)', background:'rgba(59,130,246,0.08)' } : {}}>
           <svg viewBox="0 0 24 24" fill={followMode ? '#3B82F6' : 'none'} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -403,7 +479,6 @@ export default function Maps() {
         </button>
       </div>
 
-      {/* recenter pill when dragged away mid-nav */}
       {navActive && !followMode && (
         <button className="recenter-pill" onClick={recenter}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width:14, height:14 }}>
@@ -413,16 +488,18 @@ export default function Maps() {
         </button>
       )}
 
-      {/* top chrome */}
       <div className="maps-top-chrome">
-        <div className="status-bar" style={{ padding: 0 }}><span>{time}</span><span className="mono">93%</span></div>
+        <div className="status-bar" style={{ padding:0 }}>
+          <span>{time}</span>
+          {battery !== null && <span className="mono">{battery}%</span>}
+        </div>
 
         <div className="search-row">
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
           <input
             type="text"
             placeholder="Where do you want to go?"
-            value={navActive ? (navPlace?.name || '') : selectedPlace ? selectedPlace.name : searchQuery}
+            value={navActive ? (navPlace?.name||'') : selectedPlace ? selectedPlace.name : searchQuery}
             readOnly={navActive || !!selectedPlace}
             onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
             onFocus={() => { if (!selectedPlace) setSearchOpen(true); }}
@@ -443,24 +520,23 @@ export default function Maps() {
               {searchLoading && (
                 <div className="search-drop-item"><span className="spinner" style={{ width:12, height:12, flexShrink:0 }} /><span style={{ fontSize:13, color:'var(--paper-dim)' }}>Searching…</span></div>
               )}
-              {!searchLoading && searchResults.map((r, i) => {
-                const title = r.display_name.split(',')[0];
-                const sub   = r.display_name.split(',').slice(1, 3).join(', ').trim();
-                return (
-                  <div key={i} className="search-drop-item" onMouseDown={() => {
-                    setSearchQuery(''); setSearchOpen(false); setSearchResults([]);
-                    selectPlace({ name: title, coords: [parseFloat(r.lat), parseFloat(r.lon)], label: r.type || 'Place', distKm: null });
-                  }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:14, height:14, flexShrink:0, color:'var(--paper-faint)' }}>
-                      <path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>
-                    </svg>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13.5, color:'var(--paper)', fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{title}</div>
-                      {sub && <div style={{ fontSize:11.5, color:'var(--paper-faint)', marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{sub}</div>}
+              {!searchLoading && searchResults.map((r, i) => (
+                <div key={i} className="search-drop-item" onMouseDown={() => selectPrediction(r)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:14, height:14, flexShrink:0, color:'var(--paper-faint)' }}>
+                    <path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>
+                  </svg>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13.5, color:'var(--paper)', fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {r.structured_formatting?.main_text || r.description}
                     </div>
+                    {r.structured_formatting?.secondary_text && (
+                      <div style={{ fontSize:11.5, color:'var(--paper-faint)', marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                        {r.structured_formatting.secondary_text}
+                      </div>
+                    )}
                   </div>
-                );
-              })}
+                </div>
+              ))}
               {!searchLoading && searchResults.length === 0 && (
                 <div className="search-drop-item" style={{ color:'var(--paper-faint)', fontSize:13 }}>No results found</div>
               )}
@@ -474,8 +550,7 @@ export default function Maps() {
               <div key={chip.label}
                 className={`chip${activeChip === chip.label ? ' active' : ''}`}
                 style={activeChip === chip.label ? { borderColor:chip.color, color:chip.color, background:`${chip.color}18` } : {}}
-                onMouseDown={() => handleChip(chip)}
-              >
+                onMouseDown={() => handleChip(chip)}>
                 {chipLoading && activeChip === chip.label && <span className="spinner" style={{ width:11, height:11, borderColor:`${chip.color}40`, borderTopColor:chip.color }} />}
                 {chip.label}
               </div>
@@ -486,8 +561,8 @@ export default function Maps() {
 
       {locStatus === 'loading' && <div className="location-banner"><span className="spinner" style={{ width:11, height:11, flexShrink:0 }} />Getting your precise location…</div>}
       {locStatus === 'denied'  && <div className="location-banner denied">Location access denied — enable in browser settings</div>}
+      {locStatus === 'error'   && <div className="location-banner denied">Google Maps failed to load — check your API key</div>}
 
-      {/* ── NEARBY SHEET ── */}
       {showNearby && (
         <div className="sheet">
           <div className="sheet-grip" />
@@ -504,7 +579,7 @@ export default function Maps() {
           {!nearbyLoading && !chipLoading && displayedPlaces.length === 0 && locStatus === 'ok' && (
             <div style={{ fontSize:13, color:'var(--paper-faint)', padding:'10px 0' }}>No places found — try a different category</div>
           )}
-          {displayedPlaces.slice(0, 7).map((p, i) => (
+          {displayedPlaces.slice(0,7).map((p, i) => (
             <div key={i} className="place-row" onClick={() => selectPlace(p)}>
               <div className="place-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
               <div className="place-main"><div className="place-name">{p.name}</div><div className="place-meta">{p.label}</div></div>
@@ -514,7 +589,6 @@ export default function Maps() {
         </div>
       )}
 
-      {/* ── PLACE PREVIEW SHEET — time + distance before navigating ── */}
       {showPreview && (
         <div className="sheet preview-sheet">
           <div className="sheet-grip" />
@@ -523,15 +597,10 @@ export default function Maps() {
             {selectedPlace.label}
             {selectedPlace.distKm != null && <span className="preview-dist-pill">{fmtDist(selectedPlace.distKm)} away</span>}
           </div>
-
           {previewLoading ? (
-            <div className="preview-loading">
-              <span className="spinner" style={{ width:14, height:14, borderColor:'rgba(59,130,246,0.2)', borderTopColor:'#3B82F6' }} />
-              <span>Calculating time…</span>
-            </div>
+            <div className="preview-loading"><span className="spinner" style={{ width:14, height:14, borderColor:'rgba(59,130,246,0.2)', borderTopColor:'#3B82F6' }} /><span>Calculating time…</span></div>
           ) : preview ? (
             <div className="preview-modes">
-              {/* drive */}
               <button className="preview-mode-card" onClick={() => startNav(selectedPlace, 'driving')}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:22, height:22, flexShrink:0 }}>
                   <rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v3h-7V8z"/>
@@ -543,7 +612,6 @@ export default function Maps() {
                 </div>
                 <span className="preview-go-btn">Go</span>
               </button>
-              {/* walk */}
               <button className="preview-mode-card" onClick={() => startNav(selectedPlace, 'walking')}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:22, height:22, flexShrink:0 }}>
                   <circle cx="13" cy="4" r="2"/><path d="M9.5 9.5L11 16l-3 2M14.5 9.5L13 16l3 2M9.5 9.5c1-1.5 3-2 5 0"/>
@@ -558,12 +626,10 @@ export default function Maps() {
           ) : (
             <div className="preview-loading" style={{ color:'var(--paper-faint)' }}>Could not calculate route</div>
           )}
-
           <button className="preview-dismiss-btn" onClick={dismissPreview}>Cancel</button>
         </div>
       )}
 
-      {/* ── NAV SHEET ── */}
       {navActive && (
         <div className="nav-sheet">
           {routeLoading ? (
@@ -583,7 +649,6 @@ export default function Maps() {
                   <ellipse cx="7" cy="12" rx="4" ry="3.2"/><ellipse cx="17" cy="12" rx="4" ry="3.2"/><path d="M11 11c.6-1 1.4-1 2 0"/>
                 </svg>
               </div>
-
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14 }}>
                 <div>
                   <div style={{ fontSize:16, fontWeight:700, color:'var(--paper)', fontFamily:'Space Grotesk,sans-serif' }}>{navPlace?.name}</div>
@@ -598,21 +663,18 @@ export default function Maps() {
                   </button>
                 </div>
               </div>
-
               {currentStep && (
                 <div className="current-turn-card">
                   <div className="current-turn-label">NOW ON GLASS</div>
-                  <div className="current-turn-text">{fmtStep(currentStep)}</div>
-                  {nextStep && <div className="current-turn-next">then → {fmtStep(nextStep)}</div>}
+                  <div className="current-turn-text">{stripHtml(currentStep.instructions)}</div>
+                  {nextStep && <div className="current-turn-next">then → {stripHtml(nextStep.instructions)}</div>}
                 </div>
               )}
-
               <div className="nav-stats" style={{ marginTop:12 }}>
                 <div className="nav-stat"><div className="nav-stat-label">ETA</div><div className="nav-stat-value">{routeInfo.dur}</div></div>
                 <div className="nav-stat"><div className="nav-stat-label">DISTANCE</div><div className="nav-stat-value">{routeInfo.dist}</div></div>
                 <div className="nav-stat"><div className="nav-stat-label">ARRIVE</div><div className="nav-stat-value">{arriveTime}</div></div>
               </div>
-
               <button className="btn-end-nav" onClick={endNav}>End route</button>
             </>
           )}

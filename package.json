@@ -11,10 +11,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
-    "leaflet": "^1.9.4",
+    "@googlemaps/js-api-loader": "^2.1.1",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-leaflet": "^5.0.0"
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

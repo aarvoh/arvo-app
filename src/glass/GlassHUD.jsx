@@ -448,10 +448,14 @@ export default function GlassHUD() {
         case 'nav_start':
           setNavData({ instruction: msg.instruction, street: msg.street, distance: msg.distance, dest: msg.dest, eta: msg.eta });
           setShowNav(true);
+          setHudMode('idle');
+          setAnswerExiting(false);
+          setAnswer('');
           speakText(`Navigation started. ${msg.instruction} onto ${msg.street} in ${msg.distance}.`);
           break;
         case 'nav_end':
           setShowNav(false);
+          setNavData(null);
           speakText('Navigation ended.');
           break;
         case 'nav_turn':
@@ -727,17 +731,12 @@ export default function GlassHUD() {
 
   // ── manual triggers ──
   function triggerNav() {
-    if (navData) {
-      // nav already active from phone — just toggle the overlay
-      setShowNav(v => !v);
-    } else {
-      // no active nav — ask phone to open Maps tab
+    if (showNav) { setShowNav(false); return; }
+    setShowNav(true);
+    if (!navData) {
       outSeqRef.current += 1;
       glassChannel?.postMessage({ type: 'open_maps', seq_id: outSeqRef.current });
-      setAnswer('Opening Maps on your phone…\nSearch a destination to start navigation.');
-      setHudMode('answer');
-      setAnswerExiting(false);
-      speakText('Opening Maps on your phone', backToWake);
+      speakText('Opening Maps on your phone', () => {});
     }
   }
   async function triggerMusic() {
@@ -1361,7 +1360,7 @@ export default function GlassHUD() {
           </div>
 
           {/* App Home Grid */}
-          {hudMode === 'idle' && !showMusic && !showWeather && (
+          {hudMode === 'idle' && !showMusic && !showWeather && !showNav && (
             <div className="app-home-grid">
               <div className="app-grid-dots">
                 {PAGE_TILES.map((_, i) => (
@@ -1431,21 +1430,29 @@ export default function GlassHUD() {
             </div>
           )}
 
-          {/* Nav Player — Meta-style, opens like Spotify */}
-          {showNav && navData && hudMode === 'idle' && (
+          {/* Nav Player — same pattern as Spotify, replaces grid */}
+          {showNav && hudMode === 'idle' && (
             <div className="nav-player-full">
               <button className="npf-close" onClick={() => setShowNav(false)} style={{ pointerEvents: 'auto' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{width:14,height:14}}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
-              <div className="npf-arrow">
-                <NavTurnArrow instruction={navData.instruction} />
+              <div className="npf-arrow-wrap">
+                {navData
+                  ? <NavTurnArrow instruction={navData.instruction} />
+                  : <svg viewBox="0 0 24 24" fill="none" stroke="rgba(59,130,246,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{width:52,height:52}}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+                }
               </div>
-              <div className="npf-street">{navData.street}</div>
-              <div className="npf-distance">{navData.distance}</div>
-              <div className="npf-footer">
-                {navData.dest && <div className="npf-dest">📍 {navData.dest}</div>}
-                {navData.eta  && <div className="npf-eta">ETA {navData.eta}</div>}
+              <div className="npf-street">{navData ? navData.street : 'No navigation'}</div>
+              <div className="npf-distance" style={{ color: navData ? '#3B82F6' : 'rgba(255,255,255,0.3)' }}>
+                {navData ? navData.distance : 'Search on your phone to start'}
               </div>
+              {navData && <div className="npf-route-bar"><div className="npf-route-fill" /></div>}
+              {navData && (
+                <div className="npf-footer">
+                  {navData.dest && <div className="npf-dest">📍 {navData.dest}</div>}
+                  {navData.eta  && <div className="npf-eta">ETA {navData.eta}</div>}
+                </div>
+              )}
             </div>
           )}
 
