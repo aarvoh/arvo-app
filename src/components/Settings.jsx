@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import useLiveClock from '../hooks/useLiveClock';
 import { initiateLogin, disconnect } from '../lib/spotify';
-import glassChannel from '../lib/glassChannel';
 
 const LANGS = ['English (IN)', 'English (US)', 'Hindi', 'Kannada', 'Tamil', 'Telugu'];
 const VERBOSITY = ['Brief', 'Balanced', 'Detailed'];
@@ -22,28 +21,7 @@ function countTodayActivity() {
 export default function Settings({ spotifyConnected, onSpotifyChange }) {
   const time = useLiveClock();
   const todayCount = countTodayActivity();
-  const [battery,     setBattery]     = useState(null);
-  const [callStatus,  setCallStatus]  = useState(null);
-  const [demoOpen,    setDemoOpen]    = useState(false);
-  const callStatusTimer = useRef(null);
-
-  function showCallBanner(text, color) {
-    setCallStatus({ text, color });
-    clearTimeout(callStatusTimer.current);
-    callStatusTimer.current = setTimeout(() => setCallStatus(null), 4000);
-  }
-
-  useEffect(() => {
-    if (!glassChannel) return;
-    function handle(e) {
-      const msg = e.data;
-      if (msg?.type === 'call_answer')   showCallBanner(`✓ Call connected · ${msg.caller || ''}`, '#34D399');
-      if (msg?.type === 'call_declined') showCallBanner('✕ Call declined', '#EF4444');
-      if (msg?.type === 'call_ended')    showCallBanner('Call ended', '#6b7280');
-    }
-    glassChannel.addEventListener('message', handle);
-    return () => { glassChannel.removeEventListener('message', handle); clearTimeout(callStatusTimer.current); };
-  }, []);
+  const [battery, setBattery] = useState(null);
 
   useEffect(() => {
     if (!navigator.getBattery) return;
@@ -465,57 +443,6 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
               <div className="row-value">0.1.0-dev</div>
             </div>
           </div>
-        </div>
-
-        {/* ── Demo tools ───────────────────────────────── */}
-        <div className="section">
-          <div className="section-label" style={{ cursor:'pointer', userSelect:'none' }} onClick={() => setDemoOpen(v => !v)}>
-            DEMO TOOLS {demoOpen ? '▲' : '▼'}
-          </div>
-          {demoOpen && (
-            <div className="group">
-              {callStatus && (
-                <div style={{ padding:'10px 14px', borderRadius:8, background: callStatus.color + '1a', border:`1px solid ${callStatus.color}33`, fontSize:13, fontWeight:600, color: callStatus.color, marginBottom:4 }}>
-                  {callStatus.text}
-                </div>
-              )}
-              <div className="row" style={{ cursor:'pointer' }} onClick={() => glassChannel?.postMessage({ type:'call_start', caller:'Priya', app:'WhatsApp' })}>
-                <div className="row-icon" style={{ background:'rgba(37,211,102,0.12)', color:'#25D366' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.37 18a19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.93-8.41A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                </div>
-                <div className="row-main"><div className="row-title">Incoming call · Priya</div><div className="row-sub">WhatsApp · appears on glass</div></div>
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:16, color:'var(--paper-faint)' }}><path d="M9 18l6-6-6-6"/></svg>
-              </div>
-              <div className="row" style={{ cursor:'pointer' }} onClick={() => glassChannel?.postMessage({ type:'notification', app:'WhatsApp', sender:'Priya', preview:'Are you coming tonight? 🎉' })}>
-                <div className="row-icon" style={{ background:'rgba(37,211,102,0.12)', color:'#25D366' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                </div>
-                <div className="row-main"><div className="row-title">WhatsApp notification</div><div className="row-sub">From Priya · "Are you coming tonight? 🎉"</div></div>
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:16, color:'var(--paper-faint)' }}><path d="M9 18l6-6-6-6"/></svg>
-              </div>
-              <div className="row" style={{ cursor:'pointer' }} onClick={() => glassChannel?.postMessage({ type:'notification', app:'Instagram', sender:'Rahul', preview:'Liked your photo.' })}>
-                <div className="row-icon" style={{ background:'rgba(225,48,108,0.12)', color:'#E1306C' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                </div>
-                <div className="row-main"><div className="row-title">Instagram notification</div><div className="row-sub">From Rahul · "Liked your photo."</div></div>
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:16, color:'var(--paper-faint)' }}><path d="M9 18l6-6-6-6"/></svg>
-              </div>
-              <div className="row" style={{ cursor:'pointer' }} onClick={() => glassChannel?.postMessage({ type:'notification', app:'Gmail', sender:'Harsha from Google', preview:'Your weekly activity summary is ready.' })}>
-                <div className="row-icon" style={{ background:'rgba(234,67,53,0.12)', color:'#EA4335' }}>
-                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 010 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.908 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>
-                </div>
-                <div className="row-main"><div className="row-title">Gmail notification</div><div className="row-sub">Weekly activity summary</div></div>
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:16, color:'var(--paper-faint)' }}><path d="M9 18l6-6-6-6"/></svg>
-              </div>
-              <div className="row" style={{ cursor:'pointer' }} onClick={() => glassChannel?.postMessage({ type:'nav_start', instruction:'Head north', street:'MG Road', distance:'1.2 km', dest:'Kempegowda International Airport', eta:'45 min' })}>
-                <div className="row-icon sage">
-                  <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-                </div>
-                <div className="row-main"><div className="row-title">Navigate to Airport</div><div className="row-sub">45 min · Turn-by-turn on glass</div></div>
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:16, color:'var(--paper-faint)' }}><path d="M9 18l6-6-6-6"/></svg>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ── Danger zone ──────────────────────────────── */}

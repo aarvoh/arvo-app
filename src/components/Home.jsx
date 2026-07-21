@@ -54,9 +54,7 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
   const [nowPlaying,  setNowPlaying]  = useState(null);
   const [isPlaying,   setIsPlaying]   = useState(false);
   const [battery,     setBattery]     = useState(null);
-  const [callStatus,  setCallStatus]  = useState(null); // { text, color }
-  const glassPingTimer     = useRef(null);
-  const callStatusTimer    = useRef(null);
+  const glassPingTimer  = useRef(null);
   const lastMusicBroadcast = useRef({ track: null, playing: null });
 
   const savedName = localStorage.getItem('arvo_user_name');
@@ -84,12 +82,6 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
     });
   }, []);
 
-  function showCallBanner(text, color) {
-    setCallStatus({ text, color });
-    clearTimeout(callStatusTimer.current);
-    callStatusTimer.current = setTimeout(() => setCallStatus(null), 4000);
-  }
-
   useEffect(() => {
     if (!glassChannel) return;
     function handle(e) {
@@ -100,16 +92,9 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
         glassPingTimer.current = setTimeout(() => setGlassLive(false), 8000);
       }
       if (msg?.type === 'glass_query') setTimeout(loadRecent, 300);
-      if (msg?.type === 'call_answer')  showCallBanner(`Call connected · ${msg.caller || ''}`, '#34D399');
-      if (msg?.type === 'call_declined') showCallBanner('Call declined', '#EF4444');
-      if (msg?.type === 'call_ended')   showCallBanner('Call ended', '#6b7280');
     }
     glassChannel.addEventListener('message', handle);
-    return () => {
-      glassChannel.removeEventListener('message', handle);
-      clearTimeout(glassPingTimer.current);
-      clearTimeout(callStatusTimer.current);
-    };
+    return () => { glassChannel.removeEventListener('message', handle); clearTimeout(glassPingTimer.current); };
   }, []);
 
   // Keep glass status bar showing phone as live while Home screen is open
@@ -408,13 +393,6 @@ export default function Home({ onOpenSettings, onOpenActivity, onNavigate, spoti
             <div className="nc-hint">Glass must be open to receive notifications</div>
           )}
         </div>
-
-        {/* call status toast */}
-        {callStatus && (
-          <div style={{ margin:'12px 0 0', padding:'10px 16px', borderRadius:10, background: callStatus.color + '1a', border:`1px solid ${callStatus.color}33`, fontSize:13, fontWeight:600, color: callStatus.color }}>
-            {callStatus.text}
-          </div>
-        )}
 
         {/* ── Recent glass activity ── */}
         <div className="recent-section" style={{ marginTop: 24 }}>
