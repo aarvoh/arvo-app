@@ -209,12 +209,16 @@ let _globalSeq = 0;
 function nextSeq() { return ++_globalSeq; }
 
 // ─── nav road visualization ───────────────────────────────────────
-function NavRoadSVG({ instruction = '' }) {
+function NavRoadSVG({ instruction = '', speed = 0 }) {
   const i = (instruction || '').toLowerCase();
   const isLeft  = /left/.test(i);
   const isRight = /right/.test(i);
   const isArrive = /arrive|destination/.test(i);
   const isUTurn = /u.?turn/.test(i);
+  // speed is m/s from GPS. Map to animation duration:
+  // stopped (0 m/s) → 2.5s slow drift, 60 km/h (16.7 m/s) → ~0.2s fast rush
+  const dashDur = (speed > 0.5 ? Math.max(0.18, 1.0 / (0.4 + speed * 0.15)) : 2.5).toFixed(2) + 's';
+  const speedKmh = Math.round(speed * 3.6);
   return (
     <svg viewBox="0 0 280 110" className="npf-road-svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -257,12 +261,21 @@ function NavRoadSVG({ instruction = '' }) {
       <line x1="48" y1="110" x2="82" y2="28" stroke="rgba(255,255,255,0.08)" strokeWidth="1" clipPath="url(#npfClip)"/>
       <line x1="232" y1="110" x2="198" y2="28" stroke="rgba(255,255,255,0.08)" strokeWidth="1" clipPath="url(#npfClip)"/>
 
-      {/* Animated center dashes — flow toward viewer */}
+      {/* Animated center dashes — speed-reactive flow toward viewer */}
       <line x1="140" y1="108" x2="140" y2="30"
         stroke="#3B82F6" strokeWidth="2" strokeDasharray="10 7"
         opacity="0.65" filter="url(#npfGlow)" clipPath="url(#npfClip)">
-        <animate attributeName="stroke-dashoffset" from="0" to="17" dur="0.42s" repeatCount="indefinite"/>
+        <animate attributeName="stroke-dashoffset" from="0" to="17" dur={dashDur} repeatCount="indefinite"/>
       </line>
+
+      {/* Speed readout — bottom-left of road */}
+      {speedKmh > 0 && <>
+        <rect x="56" y="92" width="42" height="16" rx="4" fill="rgba(0,0,0,0.55)"/>
+        <text x="77" y="104" textAnchor="middle" fontSize="10" fontWeight="700"
+              fontFamily="'JetBrains Mono',monospace" fill="#3B82F6" opacity="0.9">
+          {speedKmh} km/h
+        </text>
+      </>}
 
       {/* Direction indicator */}
       {isArrive && <>
@@ -379,6 +392,7 @@ export default function GlassHUD() {
 
   // overlay cards
   const [navData,      setNavData]      = useState(null);  const [showNav,     setShowNav]     = useState(false);
+  const [navSpeed,     setNavSpeed]     = useState(0);
   const [musicData,    setMusicData]    = useState(null);  const [showMusic,   setShowMusic]   = useState(false);
   const [musicPlaying, setMusicPlaying] = useState(true);
   const [notifData,    setNotifData]    = useState(null);  const [showNotif,   setShowNotif]   = useState(false);
@@ -553,7 +567,11 @@ export default function GlassHUD() {
         case 'nav_end':
           setShowNav(false);
           setNavData(null);
+          setNavSpeed(0);
           speakText('Navigation ended.');
+          break;
+        case 'location_update':
+          if (msg.speed != null) setNavSpeed(msg.speed);
           break;
         case 'nav_turn':
           setNavData(d => ({ ...d, instruction: msg.instruction, street: msg.street, distance: msg.distance }));
@@ -1564,8 +1582,8 @@ export default function GlassHUD() {
                 </div>
               </div>
 
-              {/* Road visualization */}
-              <NavRoadSVG instruction={navData?.instruction || ''} />
+              {/* Road visualization — speed-reactive */}
+              <NavRoadSVG instruction={navData?.instruction || ''} speed={navSpeed} />
 
               {/* Footer: dest + ETA */}
               {navData && (

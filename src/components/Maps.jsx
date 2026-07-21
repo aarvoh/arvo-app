@@ -247,7 +247,7 @@ export default function Maps() {
         });
       }
       if (followModeRef.current) map.panTo(latlng);
-      if (navActiveRef.current) glassChannel?.postMessage({ type: 'location_update', lat: coords[0], lng: coords[1] });
+      if (navActiveRef.current) glassChannel?.postMessage({ type: 'location_update', lat: coords[0], lng: coords[1], speed: pos.coords.speed || 0 });
 
       if (navActiveRef.current) {
         const steps = stepsRef.current; const idx = currentStepIdxRef.current;
