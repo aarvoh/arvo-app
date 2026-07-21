@@ -247,8 +247,14 @@ export default function GlassHUD() {
   // overlay cards
   const [navData,      setNavData]      = useState(null);  const [showNav,     setShowNav]     = useState(false);
   const [musicData,    setMusicData]    = useState(null);  const [showMusic,   setShowMusic]   = useState(false);
+  const [musicPlaying, setMusicPlaying] = useState(true);
   const [notifData,    setNotifData]    = useState(null);  const [showNotif,   setShowNotif]   = useState(false);
-  const [callData,     setCallData]     = useState(null);  const [showCall,    setShowCall]    = useState(false);
+  const [callData,      setCallData]      = useState(null);  const [showCall,     setShowCall]     = useState(false);
+  const [callConnected, setCallConnected] = useState(false);
+  const [callDuration,  setCallDuration]  = useState(0);
+  const callTimerRef     = useRef(null);
+  const callConnectedRef = useRef(false);
+  useEffect(() => { callConnectedRef.current = callConnected; }, [callConnected]);
   const [showWeather,  setShowWeather]  = useState(false);
   const [gridPage,     setGridPage]     = useState(0);
   const [gridOffset,   setGridOffset]   = useState(0);
@@ -415,8 +421,14 @@ export default function GlassHUD() {
           speakText(`In ${msg.distance}, ${msg.instruction} onto ${msg.street}.`);
           break;
         case 'music_update':
-          if (msg.playing) { setMusicData({ track: msg.track, artist: msg.artist }); setShowMusic(true); }
-          else setShowMusic(false);
+          if (msg.playing) {
+            setMusicData({ track: msg.track, artist: msg.artist, albumArt: msg.albumArt || null, source: 'spotify' });
+            setMusicPlaying(true);
+            setShowMusic(true);
+          } else {
+            setMusicPlaying(false);
+            // don't hide — let user see track name and tap play to resume
+          }
           break;
         case 'notification':
           if (cpDNDRef.current) break;
@@ -440,6 +452,21 @@ export default function GlassHUD() {
         case 'fitness_stop':
           setFitnessActive(false);
           setTimeout(() => setShowFitness(false), 4000);
+          break;
+        case 'call_start':
+          if (cpDNDRef.current) break;
+          setCallData({ caller: msg.caller || 'Unknown', app: msg.app || 'Phone' });
+          setCallConnected(false);
+          setCallDuration(0);
+          clearInterval(callTimerRef.current);
+          setShowCall(true);
+          speakText(`Incoming ${msg.app || 'call'} from ${msg.caller || 'Unknown'}`);
+          break;
+        case 'call_end':
+          clearInterval(callTimerRef.current);
+          setShowCall(false);
+          setCallConnected(false);
+          setCallDuration(0);
           break;
         default: break;
       }
@@ -667,15 +694,20 @@ export default function GlassHUD() {
       const data = await getCurrentlyPlaying();
       if (data?.item) {
         setMusicData({ track: data.item.name, artist: data.item.artists.map(a => a.name).join(', '), albumArt: data.item.album.images[0]?.url, source: 'spotify' });
+        setMusicPlaying(data.is_playing ?? true);
       } else {
         setMusicData({ track: 'Nothing playing', artist: 'Open Spotify to start', source: 'spotify' });
+        setMusicPlaying(false);
       }
-    } catch { setMusicData({ track: 'Spotify', artist: 'Not connected', source: 'spotify' }); }
+    } catch {
+      setMusicData({ track: 'Spotify', artist: 'Not connected', source: 'spotify' });
+      setMusicPlaying(false);
+    }
     setShowMusic(true);
   }
   function triggerNotif()   { setNotifData({ app: 'WhatsApp', sender: 'Priya', preview: 'Are you coming tonight?' }); setShowNotif(true); setTimeout(() => setShowNotif(false), 4500); }
   function triggerWeather() { setShowWeather(v => !v); }
-  // Poll Spotify every 30s while music is showing
+  // Poll Spotify every 5s while music is showing (fallback — phone broadcasts on change too)
   useEffect(() => {
     if (!showMusic) return;
     const poll = async () => {
@@ -683,17 +715,25 @@ export default function GlassHUD() {
         const data = await getCurrentlyPlaying();
         if (data?.item) {
           setMusicData(prev => {
-            if (prev?.track === data.item.name) return prev;
+            if (prev?.track === data.item.name && prev?.albumArt) return prev;
             return { track: data.item.name, artist: data.item.artists.map(a => a.name).join(', '), albumArt: data.item.album.images[0]?.url, source: 'spotify' };
           });
+          setMusicPlaying(data.is_playing ?? true);
         }
       } catch {}
     };
-    const id = setInterval(poll, 30000);
+    const id = setInterval(poll, 5000);
     return () => clearInterval(id);
   }, [showMusic]);
 
-  function triggerCall()    { setCallData({ caller: 'Priya', app: 'WhatsApp' }); setShowCall(true); }
+  function triggerCall(caller = 'Priya', app = 'WhatsApp') {
+    setCallData({ caller, app });
+    setCallConnected(false);
+    setCallDuration(0);
+    clearInterval(callTimerRef.current);
+    setShowCall(true);
+    speakText(`Incoming ${app} call from ${caller}`);
+  }
 
   function dismissAnswer() {
     endSession(); // cancel auto-relisten timer so voice doesn't restart after dismiss
@@ -706,8 +746,34 @@ export default function GlassHUD() {
     }, 400);
   }
 
-  function acceptCall() { setShowCall(false); speakText('Call accepted'); }
-  function declineCall() { setShowCall(false); speakText('Call declined'); }
+  function acceptCall() {
+    setCallConnected(true);
+    setCallDuration(0);
+    clearInterval(callTimerRef.current);
+    callTimerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
+    outSeqRef.current += 1;
+    glassChannel?.postMessage({ type: 'call_answer', caller: callData?.caller, app: callData?.app, seq_id: outSeqRef.current });
+    speakText('Call connected');
+  }
+
+  function declineCall() {
+    clearInterval(callTimerRef.current);
+    setShowCall(false);
+    setCallConnected(false);
+    outSeqRef.current += 1;
+    glassChannel?.postMessage({ type: 'call_declined', seq_id: outSeqRef.current });
+    speakText('Call declined');
+  }
+
+  function endCall() {
+    clearInterval(callTimerRef.current);
+    setShowCall(false);
+    setCallConnected(false);
+    setCallDuration(0);
+    outSeqRef.current += 1;
+    glassChannel?.postMessage({ type: 'call_ended', seq_id: outSeqRef.current });
+    speakText('Call ended');
+  }
 
   // ── voice query ──
   function startVoiceQuery(noSpeechRetries = 4) {
@@ -821,8 +887,11 @@ export default function GlassHUD() {
       if (/^(accept|answer the call|answer)$/.test(cmd) && showCallRef.current) {
         acceptCall(); startSession(); return;
       }
-      if (/^(decline|reject|ignore|end call)$/.test(cmd) && showCallRef.current) {
+      if (/^(decline|reject|ignore)$/.test(cmd) && showCallRef.current) {
         declineCall(); startSession(); return;
+      }
+      if (/^(end call|hang up|end the call|disconnect|hang up the call)$/.test(cmd) && (showCallRef.current || callConnectedRef.current)) {
+        callConnectedRef.current ? endCall() : declineCall(); startSession(); return;
       }
 
       // weather shortcut
@@ -1071,34 +1140,60 @@ export default function GlassHUD() {
       </div>
 
       {/* ── CALL OVERLAY ── */}
-      {showCall && callData && (
-        <div className="call-overlay">
-          {(() => {
-            const brand = getAppBrand(callData.app);
-            return (
-              <div className="call-ring" style={{ background: brand.bg, borderColor: brand.border }}>
-                <AppIcon app={callData.app} size={28} />
-              </div>
-            );
-          })()}
-          <div className="call-app" style={{ color: getAppBrand(callData.app).color }}>{callData.app}</div>
-          <div className="call-caller">{callData.caller}</div>
-          <div className="call-label">Incoming call</div>
-          <div className="call-actions">
-            <button className="call-btn decline" onClick={declineCall}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              Decline
-            </button>
-            <button className="call-btn accept" onClick={acceptCall}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.37 18a19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.93-8.41A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-              </svg>
-              Accept
-            </button>
+      {showCall && callData && (() => {
+        const brand = getAppBrand(callData.app);
+        return (
+          <div className="call-overlay">
+            {!callConnected ? (
+              <>
+                <div className="call-ring" style={{ background: brand.bg, borderColor: brand.border }}>
+                  <AppIcon app={callData.app} size={28} />
+                </div>
+                <div className="call-app" style={{ color: brand.color }}>{callData.app}</div>
+                <div className="call-caller">{callData.caller}</div>
+                <div className="call-label">Incoming call</div>
+                <div className="call-actions">
+                  <button className="call-btn decline" onClick={declineCall}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    Decline
+                  </button>
+                  <button className="call-btn accept" onClick={acceptCall}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.37 18a19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.93-8.41A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                    Accept
+                  </button>
+                </div>
+                <div className="call-hint">say "accept" or "decline"</div>
+              </>
+            ) : (
+              <>
+                <div className="call-ring" style={{ background:'rgba(52,211,153,0.1)', borderColor:'rgba(52,211,153,0.35)', boxShadow:'0 0 28px rgba(52,211,153,0.18)' }}>
+                  <AppIcon app={callData.app} size={28} />
+                </div>
+                <div className="call-app" style={{ color:'#34D399' }}>{callData.app}</div>
+                <div className="call-caller">{callData.caller}</div>
+                <div className="call-label" style={{ color:'#34D399' }}>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                    <span className="session-dot" />
+                    {fmtDuration(callDuration)}
+                  </span>
+                </div>
+                <div className="call-actions">
+                  <button className="call-btn decline" style={{ width:'100%' }} onClick={endCall}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:20,height:20}}>
+                      <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07"/>
+                      <line x1="23" y1="1" x2="1" y2="23"/>
+                    </svg>
+                    End Call
+                  </button>
+                </div>
+                <div className="call-hint">say "end call" or "hang up"</div>
+              </>
+            )}
           </div>
-          <div className="call-hint">say "accept" or "decline"</div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── RECONNECTING BANNERS ── */}
       {connState === 'reconnecting' && (
@@ -1235,10 +1330,32 @@ export default function GlassHUD() {
                     <div key={pageIdx} className="app-grid-page" style={{ width: `${100 / PAGE_TILES.length}%` }}>
                       {tiles.map(({ name, bg }) => (
                         <div key={name} className="app-tile" style={{ background: bg }}
-                          onClick={() => {
-                            if (name === 'Fitness') { setShowFitness(true); }
-                            else if (name === 'Spotify') { triggerMusic(); }
-                            else if (name === 'Maps') { triggerNav(); }
+                          onClick={async () => {
+                            if (name === 'Fitness') { setShowFitness(true); return; }
+                            if (name === 'Spotify') { triggerMusic(); return; }
+                            if (name === 'Maps')    { triggerNav(); return; }
+                            if (name === 'Calls')   { triggerCall(); return; }
+                            if (name === 'Camera')  {
+                              setShowScan(true);
+                              setHudMode('processing');
+                              setQuery('"What do you see?"');
+                              const frame = captureFrame(videoRef.current);
+                              try {
+                                const ans = await askClaude('What do you see in front of me? Describe briefly in 1–2 sentences.', frame);
+                                setShowScan(false);
+                                setAnswer(ans); setHudMode('answer'); setAnswerExiting(false);
+                                speakText(ans, backToWake);
+                              } catch {
+                                setShowScan(false);
+                                setAnswer('Could not see — try again.');
+                                setHudMode('answer');
+                                backToWake();
+                              }
+                              return;
+                            }
+                            // WhatsApp, Instagram, Messenger, Telegram, Snapchat, Gmail, YouTube
+                            // — start voice so the user can speak their intent for that app
+                            startVoiceQuery();
                           }}
                         >
                           <div className="app-tile-icon"><AppIcon app={name} size={22} /></div>
@@ -1274,8 +1391,14 @@ export default function GlassHUD() {
                 <button className="mpf-btn" onClick={() => spotifyPrev()}>
                   <svg viewBox="0 0 24 24" fill="currentColor" style={{width:20,height:20}}><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
                 </button>
-                <button className="mpf-btn mpf-play" onClick={() => spotifyPause()}>
-                  <svg viewBox="0 0 24 24" fill="currentColor" style={{width:24,height:24}}><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                <button className="mpf-btn mpf-play" onClick={async () => {
+                  if (musicPlaying) { await spotifyPause(); setMusicPlaying(false); }
+                  else              { await spotifyPlay();  setMusicPlaying(true);  }
+                }}>
+                  {musicPlaying
+                    ? <svg viewBox="0 0 24 24" fill="currentColor" style={{width:24,height:24}}><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    : <svg viewBox="0 0 24 24" fill="currentColor" style={{width:24,height:24}}><path d="M8 5v14l11-7z"/></svg>
+                  }
                 </button>
                 <button className="mpf-btn" onClick={() => spotifyNext()}>
                   <svg viewBox="0 0 24 24" fill="currentColor" style={{width:20,height:20}}><path d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z"/></svg>
@@ -1525,16 +1648,25 @@ export default function GlassHUD() {
         {/* Wide tiles row */}
         <div className="cp-wide-row">
           {/* Volume */}
-          <div className="cp-wide-tile">
+          <div className="cp-wide-tile" style={{ cursor:'pointer', pointerEvents:'auto' }}
+            onClick={() => {
+              const next = volumeLevel >= 1 ? 0.125 : Math.min(1, Math.round((volumeLevel + 0.125) * 8) / 8);
+              setVolumeLevel(next); _vol = next;
+            }}>
             <div className="cp-wide-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" style={{width:16,height:16}}>
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
               </svg>
             </div>
             <div>
-              <div className="cp-wide-label">Volume</div>
-              <div className="cp-vol-bars">
-                {[...Array(8)].map((_, i) => <div key={i} className="cp-vol-bar" style={{ opacity: i < 5 ? 1 : 0.2 }} />)}
+              <div className="cp-wide-label">Volume · {Math.round(volumeLevel * 100)}%</div>
+              <div className="cp-vol-bars" style={{ pointerEvents:'auto' }}>
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="cp-vol-bar"
+                    style={{ opacity: i < Math.round(volumeLevel * 8) ? 1 : 0.2, cursor:'pointer' }}
+                    onClick={e => { e.stopPropagation(); const v = (i + 1) / 8; setVolumeLevel(v); _vol = v; }}
+                  />
+                ))}
               </div>
             </div>
           </div>
