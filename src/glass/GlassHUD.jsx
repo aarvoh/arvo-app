@@ -407,7 +407,7 @@ export default function GlassHUD() {
           phonePingTimer.current = setTimeout(() => {
             setPhoneConnected(false);
             setConnState('reconnecting');
-          }, 30000);
+          }, 120000);
           break;
         case 'nav_start':
           setNavData({ instruction: msg.instruction, street: msg.street, distance: msg.distance, dest: msg.dest, eta: msg.eta });
@@ -1220,19 +1220,7 @@ export default function GlassHUD() {
         );
       })()}
 
-      {/* ── RECONNECTING BANNERS ── */}
-      {connState === 'reconnecting' && (
-        <div className="reconnecting-banner" style={{ top: '55%' }}>
-          <span className="reconnecting-spinner" />
-          Reconnecting to phone…
-        </div>
-      )}
-      {brainConn === 'reconnecting' && (
-        <div className="reconnecting-banner">
-          <span className="reconnecting-spinner" />
-          Reconnecting to brain…
-        </div>
-      )}
+      {/* reconnecting banners removed — status bar shows live/off indicator */}
 
       {/* ── HUD LAYER ── */}
       <div className="hud">
