@@ -2,19 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './GlassHUD.css';
 import glassChannel from '../lib/glassChannel';
 import useBrainSocket from '../lib/useBrainSocket';
-import { setOptions as gmSetOptions, importLibrary as gmImportLibrary } from '@googlemaps/js-api-loader';
-
-const HUD_MAP_STYLE = [
-  { elementType: 'geometry',           stylers: [{ color: '#0f1117' }] },
-  { elementType: 'labels.icon',        stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill',   stylers: [{ color: '#8a9bb0' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0f1117' }] },
-  { featureType: 'poi',                stylers: [{ visibility: 'off' }] },
-  { featureType: 'road',               elementType: 'geometry', stylers: [{ color: '#1e2235' }] },
-  { featureType: 'road.highway',       elementType: 'geometry', stylers: [{ color: '#2c3d6b' }] },
-  { featureType: 'transit',            stylers: [{ visibility: 'off' }] },
-  { featureType: 'water',              elementType: 'geometry', stylers: [{ color: '#06080f' }] },
-];
 import { play as spotifyPlay, pause as spotifyPause, next as spotifyNext, previous as spotifyPrev, searchAndPlay, getCurrentlyPlaying, isConnected as spotifyIsConnected, initiateLogin as spotifyLogin, disconnect as spotifyDisconnect } from '../lib/spotify';
 
 // ─── app branding ─────────────────────────────────────────────────
@@ -221,6 +208,103 @@ function speakText(text, onDone) {
 let _globalSeq = 0;
 function nextSeq() { return ++_globalSeq; }
 
+// ─── nav road visualization ───────────────────────────────────────
+function NavRoadSVG({ instruction = '' }) {
+  const i = (instruction || '').toLowerCase();
+  const isLeft  = /left/.test(i);
+  const isRight = /right/.test(i);
+  const isArrive = /arrive|destination/.test(i);
+  const isUTurn = /u.?turn/.test(i);
+  return (
+    <svg viewBox="0 0 280 110" className="npf-road-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="npfSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#04050c"/>
+          <stop offset="100%" stopColor="#0b0e1a"/>
+        </linearGradient>
+        <linearGradient id="npfRoad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#0e1220"/>
+          <stop offset="100%" stopColor="#192030"/>
+        </linearGradient>
+        <radialGradient id="npfHorizonGlow" cx="50%" cy="20%" r="70%">
+          <stop offset="0%" stopColor="rgba(59,130,246,0.25)"/>
+          <stop offset="100%" stopColor="rgba(59,130,246,0)"/>
+        </radialGradient>
+        <filter id="npfGlow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="npfGlowBig" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <clipPath id="npfClip"><rect width="280" height="110"/></clipPath>
+      </defs>
+
+      {/* Sky */}
+      <rect width="280" height="110" fill="url(#npfSky)" clipPath="url(#npfClip)"/>
+
+      {/* Horizon glow */}
+      <ellipse cx="140" cy="27" rx="140" ry="26" fill="url(#npfHorizonGlow)"/>
+
+      {/* Road surface */}
+      <polygon points="48,110 232,110 198,28 82,28" fill="url(#npfRoad)" clipPath="url(#npfClip)"/>
+
+      {/* Edge glow lines */}
+      <line x1="48" y1="110" x2="82" y2="28" stroke="rgba(59,130,246,0.35)" strokeWidth="3" filter="url(#npfGlow)" clipPath="url(#npfClip)"/>
+      <line x1="232" y1="110" x2="198" y2="28" stroke="rgba(59,130,246,0.35)" strokeWidth="3" filter="url(#npfGlow)" clipPath="url(#npfClip)"/>
+      {/* Edge white lines */}
+      <line x1="48" y1="110" x2="82" y2="28" stroke="rgba(255,255,255,0.08)" strokeWidth="1" clipPath="url(#npfClip)"/>
+      <line x1="232" y1="110" x2="198" y2="28" stroke="rgba(255,255,255,0.08)" strokeWidth="1" clipPath="url(#npfClip)"/>
+
+      {/* Animated center dashes — flow toward viewer */}
+      <line x1="140" y1="108" x2="140" y2="30"
+        stroke="#3B82F6" strokeWidth="2" strokeDasharray="10 7"
+        opacity="0.65" filter="url(#npfGlow)" clipPath="url(#npfClip)">
+        <animate attributeName="stroke-dashoffset" from="0" to="17" dur="0.42s" repeatCount="indefinite"/>
+      </line>
+
+      {/* Direction indicator */}
+      {isArrive && <>
+        <circle cx="140" cy="27" r="11" fill="none" stroke="#10B981" strokeWidth="2.5" filter="url(#npfGlowBig)" opacity="0.9">
+          <animate attributeName="r" values="11;17;11" dur="1.5s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.5s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="140" cy="27" r="5" fill="#10B981" filter="url(#npfGlow)" opacity="0.95"/>
+      </>}
+
+      {isUTurn && <>
+        <path d="M140,30 Q170,30 170,14 Q170,0 140,4" stroke="#3B82F6" strokeWidth="3" fill="none" opacity="0.9" strokeLinecap="round" filter="url(#npfGlow)" clipPath="url(#npfClip)"/>
+        <path d="M140,4 L132,12 M140,4 L148,12" stroke="#3B82F6" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.9" filter="url(#npfGlow)"/>
+      </>}
+
+      {isLeft && <>
+        <path d="M140,30 Q95,30 65,12" stroke="#3B82F6" strokeWidth="3" fill="none" opacity="0.9" strokeLinecap="round" filter="url(#npfGlow)" clipPath="url(#npfClip)"/>
+        <path d="M65,12 L52,20 M65,12 L74,22" stroke="#3B82F6" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.9" filter="url(#npfGlow)"/>
+        {/* Extra sheen dot */}
+        <circle cx="100" cy="30" r="2.5" fill="#3B82F6" opacity="0.4" filter="url(#npfGlow)"/>
+      </>}
+
+      {isRight && <>
+        <path d="M140,30 Q185,30 215,12" stroke="#3B82F6" strokeWidth="3" fill="none" opacity="0.9" strokeLinecap="round" filter="url(#npfGlow)" clipPath="url(#npfClip)"/>
+        <path d="M215,12 L228,20 M215,12 L206,22" stroke="#3B82F6" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.9" filter="url(#npfGlow)"/>
+        <circle cx="180" cy="30" r="2.5" fill="#3B82F6" opacity="0.4" filter="url(#npfGlow)"/>
+      </>}
+
+      {!isLeft && !isRight && !isArrive && !isUTurn && (
+        /* Straight ahead — pulsing dot at vanishing point */
+        <circle cx="140" cy="27" r="4" fill="#3B82F6" filter="url(#npfGlowBig)" opacity="0.85">
+          <animate attributeName="opacity" values="0.85;0.3;0.85" dur="1.8s" repeatCount="indefinite"/>
+          <animate attributeName="r" values="4;6;4" dur="1.8s" repeatCount="indefinite"/>
+        </circle>
+      )}
+
+      {/* Bottom road sheen */}
+      <line x1="48" y1="110" x2="232" y2="110" stroke="rgba(59,130,246,0.18)" strokeWidth="1.5"/>
+    </svg>
+  );
+}
+
 function NavTurnArrow({ instruction = '' }) {
   const i = (instruction || '').toLowerCase();
   const c = 'rgba(255,255,255,0.95)';
@@ -295,10 +379,6 @@ export default function GlassHUD() {
 
   // overlay cards
   const [navData,      setNavData]      = useState(null);  const [showNav,     setShowNav]     = useState(false);
-  const [navUserCoords, setNavUserCoords] = useState(null);
-  const hudMapDivRef   = useRef(null);
-  const hudMapInstRef  = useRef(null);
-  const hudMarkerRef   = useRef(null);
   const [musicData,    setMusicData]    = useState(null);  const [showMusic,   setShowMusic]   = useState(false);
   const [musicPlaying, setMusicPlaying] = useState(true);
   const [notifData,    setNotifData]    = useState(null);  const [showNotif,   setShowNotif]   = useState(false);
@@ -421,39 +501,6 @@ export default function GlassHUD() {
     return () => activeStream?.getTracks().forEach(t => t.stop());
   }, []);
 
-  // ── HUD mini map: init when coords first arrive ──
-  useEffect(() => {
-    if (!navUserCoords || !hudMapDivRef.current || hudMapInstRef.current) return;
-    const key = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-    if (!key) return;
-    (async () => {
-      try {
-        gmSetOptions({ apiKey: key, version: 'weekly' });
-        const mapsLib = await gmImportLibrary('maps');
-        if (!hudMapDivRef.current) return;
-        const map = new mapsLib.Map(hudMapDivRef.current, {
-          center: navUserCoords, zoom: 17, styles: HUD_MAP_STYLE,
-          disableDefaultUI: true, gestureHandling: 'none', clickableIcons: false,
-        });
-        hudMapInstRef.current = map;
-        hudMarkerRef.current = new window.google.maps.Marker({
-          position: navUserCoords, map,
-          icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#3B82F6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2.5 },
-          zIndex: 10,
-        });
-      } catch {}
-    })();
-  }, [navUserCoords]); // eslint-disable-line
-
-  // ── HUD mini map: cleanup when nav ends ──
-  useEffect(() => {
-    if (!showNav) {
-      hudMapInstRef.current = null;
-      hudMarkerRef.current = null;
-      setNavUserCoords(null);
-    }
-  }, [showNav]);
-
   // ── weather ──
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(async pos => {
@@ -511,14 +558,6 @@ export default function GlassHUD() {
         case 'nav_turn':
           setNavData(d => ({ ...d, instruction: msg.instruction, street: msg.street, distance: msg.distance }));
           speakText(`In ${msg.distance}, ${msg.instruction} onto ${msg.street}.`);
-          break;
-        case 'location_update':
-          setNavUserCoords({ lat: msg.lat, lng: msg.lng });
-          if (hudMapInstRef.current) {
-            const pos = { lat: msg.lat, lng: msg.lng };
-            hudMapInstRef.current.panTo(pos);
-            if (hudMarkerRef.current) hudMarkerRef.current.setPosition(pos);
-          }
           break;
         case 'music_update':
           if (msg.playing) {
@@ -1525,10 +1564,8 @@ export default function GlassHUD() {
                 </div>
               </div>
 
-              {/* Mini map */}
-              {navData && (
-                <div className="npf-mini-map" ref={hudMapDivRef} />
-              )}
+              {/* Road visualization */}
+              <NavRoadSVG instruction={navData?.instruction || ''} />
 
               {/* Footer: dest + ETA */}
               {navData && (
