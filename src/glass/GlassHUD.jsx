@@ -343,6 +343,7 @@ export default function GlassHUD() {
   const [wakeTranscript, setWakeTranscript] = useState('');
   const wakeRecogRef     = useRef(null);
   const wakeActiveRef    = useRef(false);
+  const voiceRecogRef    = useRef(null);
 
   // phone connection
   const [phoneConnected, setPhoneConnected] = useState(false);
@@ -798,6 +799,7 @@ export default function GlassHUD() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     const recog = new SR();
+    voiceRecogRef.current = recog;
     recog.lang = 'en-IN'; recog.interimResults = true; recog.continuous = false;
 
     // Hard timeout — if mic hangs or onerror doesn't fire onend, force exit after 9s
@@ -1306,14 +1308,25 @@ export default function GlassHUD() {
             listening…
           </div>
 
-          {/* Voice listening ring */}
-          <div className={`subvocal-indicator${hudMode === 'listening' ? ' visible' : ''}`}>
+          {/* Voice listening ring — tap to cancel */}
+          <div className={`subvocal-indicator${hudMode === 'listening' ? ' visible' : ''}`}
+            onClick={() => {
+              if (hudMode !== 'listening') return;
+              try { voiceRecogRef.current?.abort(); } catch {}
+              endSession();
+              setHudMode('idle');
+              setVoiceActive(false);
+              voiceActiveRef.current = false;
+              setVoiceTranscript('');
+              setTimeout(startWakeListener, 400);
+            }}
+            style={{ cursor: hudMode === 'listening' ? 'pointer' : 'default' }}>
             <div className="sv-ring">
               <div className="sv-wave">
                 {[...Array(5)].map((_, i) => <div key={i} className="sv-bar" />)}
               </div>
             </div>
-            <div className="sv-label">listening…</div>
+            <div className="sv-label">listening… <span style={{ opacity:0.5, fontSize:'0.8em' }}>tap to cancel</span></div>
           </div>
 
           {/* Query text */}
@@ -1361,7 +1374,12 @@ export default function GlassHUD() {
                             if (name === 'Fitness') { setShowFitness(true); return; }
                             if (name === 'Spotify') { triggerMusic(); return; }
                             if (name === 'Maps')    { triggerNav(); return; }
-                            if (name === 'Calls')   { startVoiceQuery(); return; }
+                            if (name === 'Calls')   {
+                              // end any active session first so voice query won't loop on no-speech
+                              endSession();
+                              startVoiceQuery();
+                              return;
+                            }
                             if (name === 'Camera')  {
                               setShowScan(true);
                               setHudMode('processing');
@@ -1380,8 +1398,9 @@ export default function GlassHUD() {
                               }
                               return;
                             }
-                            // WhatsApp, Instagram, Messenger, Telegram, Snapchat, Gmail, YouTube
-                            // — start voice so the user can speak their intent for that app
+                            // Social tiles — just activate voice query with a clean slate
+                            // (no real app integration yet; user says what they need via Hey ARVO)
+                            endSession();
                             startVoiceQuery();
                           }}
                         >
