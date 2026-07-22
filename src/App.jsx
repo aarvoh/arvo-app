@@ -30,6 +30,10 @@ export default function App() {
     if (!glassChannel) return;
     function handle(e) {
       if (e.data?.type === 'open_maps') setActiveTab('maps');
+      if (e.data?.type === 'nav_request') {
+        sessionStorage.setItem('arvo_nav_query', e.data.query);
+        setActiveTab('maps');
+      }
     }
     glassChannel.addEventListener('message', handle);
     return () => glassChannel.removeEventListener('message', handle);

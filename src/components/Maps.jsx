@@ -146,11 +146,13 @@ export default function Maps() {
   const autocompleteServiceRef = useRef(null);
   const userCoordsRef          = useRef(null);
   const navActiveRef           = useRef(false);
+  const mapReadyRef            = useRef(false);
   const stepsRef               = useRef([]);
   const currentStepIdxRef      = useRef(0);
   const followModeRef          = useRef(false);
   const searchTimer            = useRef(null);
   const pendingShareRef        = useRef(null);
+  const pendingNavRef          = useRef(null);
   const voiceRecogRef          = useRef(null);
 
   const [mapReady,        setMapReady]        = useState(false);
@@ -188,6 +190,7 @@ export default function Maps() {
 
   useEffect(() => { navActiveRef.current = navActive; }, [navActive]);
   useEffect(() => { followModeRef.current = followMode; }, [followMode]);
+  useEffect(() => { mapReadyRef.current = mapReady; }, [mapReady]);
   useEffect(() => { stepsRef.current = routeInfo?.steps || []; currentStepIdxRef.current = 0; setCurrentStepIdx(0); }, [routeInfo]);
 
   useEffect(() => {
@@ -202,14 +205,39 @@ export default function Maps() {
   useEffect(() => {
     const q = sessionStorage.getItem('arvo_share_query');
     if (q) { pendingShareRef.current = q; sessionStorage.removeItem('arvo_share_query'); }
+    const nq = sessionStorage.getItem('arvo_nav_query');
+    if (nq) { pendingNavRef.current = nq; sessionStorage.removeItem('arvo_nav_query'); }
   }, []);
 
-  // ── Trigger pending share search once map is ready ──
+  // ── Trigger pending search / auto-nav once map is ready ──
   useEffect(() => {
-    if (!mapReady || !pendingShareRef.current) return;
-    const q = pendingShareRef.current; pendingShareRef.current = null;
-    setSearchQuery(q); setSearchOpen(true);
-  }, [mapReady]);
+    if (!mapReady) return;
+    if (pendingShareRef.current) {
+      const q = pendingShareRef.current; pendingShareRef.current = null;
+      setSearchQuery(q); setSearchOpen(true);
+    }
+    if (pendingNavRef.current) {
+      const q = pendingNavRef.current; pendingNavRef.current = null;
+      autoNavToQuery(q);
+    }
+  }, [mapReady]); // eslint-disable-line
+
+  // ── Glass nav_request listener (for when Maps is already open) ──
+  useEffect(() => {
+    if (!glassChannel) return;
+    function handleGlassNav(e) {
+      if (e.data?.type !== 'nav_request') return;
+      sessionStorage.removeItem('arvo_nav_query'); // prevent double-handle on remount
+      const q = e.data.query;
+      if (mapReadyRef.current) {
+        autoNavToQuery(q);
+      } else {
+        pendingNavRef.current = q;
+      }
+    }
+    glassChannel.addEventListener('message', handleGlassNav);
+    return () => glassChannel.removeEventListener('message', handleGlassNav);
+  }, []); // eslint-disable-line
 
   // ── init Google Maps ──
   useEffect(() => {
@@ -423,6 +451,35 @@ export default function Maps() {
       mapInstanceRef.current?.setCenter({ lat: userCoordsRef.current[0], lng: userCoordsRef.current[1] });
       mapInstanceRef.current?.setZoom(16);
     }
+  }
+
+  function autoNavToQuery(query) {
+    const google = googleRef.current;
+    const autocomplete = autocompleteServiceRef.current;
+    const places = placesServiceRef.current;
+    if (!google || !autocomplete || !places) return;
+    const opts = { input: query };
+    if (userCoordsRef.current) {
+      opts.origin = new google.maps.LatLng(userCoordsRef.current[0], userCoordsRef.current[1]);
+      opts.locationBias = { center: opts.origin, radius: 50000 };
+    }
+    autocomplete.getPlacePredictions(opts, (predictions, status) => {
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions?.length) {
+        glassChannel?.postMessage({ type: 'nav_error', message: `Couldn't find "${query}"` });
+        return;
+      }
+      places.getDetails(
+        { placeId: predictions[0].place_id, fields: ['name', 'geometry'] },
+        (result, detailStatus) => {
+          if (detailStatus !== google.maps.places.PlacesServiceStatus.OK || !result?.geometry) return;
+          startNav({
+            name: result.name,
+            coords: [result.geometry.location.lat(), result.geometry.location.lng()],
+            placeId: predictions[0].place_id,
+          }, 'driving');
+        }
+      );
+    });
   }
 
   async function startNav(place, mode) {

@@ -1094,25 +1094,25 @@ export default function GlassHUD() {
       }
 
       // ── SPOTIFY PLAYBACK CONTROLS ──
-      if (/^(pause|pause music|pause spotify|stop spotify)$/.test(cmd)) {
+      if (/^pause(?: (?:the )?(?:music|song|playback|spotify|it))?$/.test(cmd)) {
         if (spotifyConn) { try { await spotifyPause(); setMusicPlaying(false); } catch {} }
         setHudMode('idle');
         speakText(spotifyConn ? 'Paused' : 'Spotify not connected', backToWake);
         return;
       }
-      if (/^(resume|resume music|resume spotify|continue|play again)$/.test(cmd)) {
+      if (/^(?:resume(?: (?:the )?(?:music|song|spotify|playback|it))?|continue(?: playing)?|play again)$/.test(cmd)) {
         if (spotifyConn) { try { await spotifyPlay(); setMusicPlaying(true); } catch {} }
         setHudMode('idle');
         speakText(spotifyConn ? 'Resuming' : 'Spotify not connected', backToWake);
         return;
       }
-      if (/^(next|next song|next track|skip|skip this|skip song)$/.test(cmd)) {
+      if (/^(?:next|skip)(?: (?:this\s+|the\s+)?(?:song|track|one))?$/.test(cmd)) {
         if (spotifyConn) { try { await spotifyNext(); } catch {} }
         setHudMode('idle');
         speakText(spotifyConn ? 'Skipped' : 'Spotify not connected', backToWake);
         return;
       }
-      if (/^(previous|previous song|go back|back|last song|play previous)$/.test(cmd)) {
+      if (/^(?:previous|prev)(?: (?:song|track|one))?$|^(?:last song|play previous|go to previous)$/.test(cmd)) {
         if (spotifyConn) { try { await spotifyPrev(); } catch {} }
         setHudMode('idle');
         speakText(spotifyConn ? 'Going back' : 'Spotify not connected', backToWake);
@@ -1150,10 +1150,23 @@ export default function GlassHUD() {
         return;
       }
 
-      if (/open maps|show maps|navigate|directions|start navigation/i.test(cmd)) {
+      {
+        const _navDestMatch =
+          cmd.match(/^(?:navigate|get me|take me|walk me|drive me|directions)\s+to\s+(.+)$/) ||
+          cmd.match(/^(?:how (?:do i|can i) get to|i (?:want|need) to go to)\s+(.+)$/);
+        if (_navDestMatch) {
+          const _dest = _navDestMatch[1].trim();
+          glassChannel?.postMessage({ type: 'nav_request', query: _dest });
+          setShowNav(true);
+          setHudMode('idle');
+          speakText(`Finding route to ${_dest}`, backToWake);
+          return;
+        }
+      }
+      if (/open maps|show maps|^navigate$|^directions$|start navigation/i.test(cmd)) {
         triggerNav();
         if (!navData) {
-          speakText('Opening Maps on your phone. Search a destination to start navigation.', backToWake);
+          speakText('Opening Maps. Say "navigate to" followed by your destination.', backToWake);
         } else {
           setHudMode('idle');
           speakText('Showing navigation', backToWake);
