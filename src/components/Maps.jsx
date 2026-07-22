@@ -151,6 +151,7 @@ export default function Maps() {
   const followModeRef          = useRef(false);
   const searchTimer            = useRef(null);
   const pendingShareRef        = useRef(null);
+  const voiceRecogRef          = useRef(null);
 
   const [mapReady,        setMapReady]        = useState(false);
   const [locStatus,       setLocStatus]       = useState('loading');
@@ -176,6 +177,7 @@ export default function Maps() {
   const [previewLoading,  setPreviewLoading]  = useState(false);
 
   const [sheetMinimized,  setSheetMinimized]  = useState(false);
+  const [voiceListening,  setVoiceListening]  = useState(false);
 
   const [navActive,       setNavActive]       = useState(false);
   const [navPlace,        setNavPlace]        = useState(null);
@@ -226,6 +228,7 @@ export default function Maps() {
         const map = new mapsLib.Map(mapRef.current, {
           center: { lat: 20, lng: 78 }, zoom: 5,
           styles: MAP_STYLE, disableDefaultUI: true,
+          keyboardShortcuts: false,
           gestureHandling: 'greedy', clickableIcons: false,
         });
         mapInstanceRef.current = map;
@@ -486,6 +489,22 @@ export default function Maps() {
     }
   }
 
+  function startVoiceSearch() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    if (voiceListening) { voiceRecogRef.current?.stop(); return; }
+    const recog = new SR();
+    recog.lang = 'en-US'; recog.interimResults = false;
+    recog.onstart  = () => setVoiceListening(true);
+    recog.onresult = e => {
+      const q = e.results[0][0].transcript;
+      setSearchQuery(q); setSearchOpen(true); setVoiceListening(false);
+    };
+    recog.onend  = () => setVoiceListening(false);
+    recog.onerror = () => setVoiceListening(false);
+    voiceRecogRef.current = recog; recog.start();
+  }
+
   function recenter() {
     const c = userCoordsRef.current; if (!c) return;
     mapInstanceRef.current?.setCenter({ lat: c[0], lng: c[1] });
@@ -617,10 +636,10 @@ export default function Maps() {
               ? <button className="search-clear-btn" onClick={dismissPreview}>✕</button>
               : searchQuery
                 ? <button className="search-clear-btn" onClick={() => { setSearchQuery(''); setSearchResults([]); }}>✕</button>
-                : <div className="mic-pill">
+                : <button className={`mic-pill${voiceListening ? ' active' : ''}`} onClick={startVoiceSearch}>
                     <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3"/></svg>
-                    ready
-                  </div>
+                    {voiceListening ? 'listening…' : 'tap'}
+                  </button>
             }
             {showDropdown && (
               <div className="search-dropdown">
