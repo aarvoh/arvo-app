@@ -28,6 +28,9 @@ html, body, #root {
   width: 600px; height: 600px;
   flex-shrink: 0;
   display: flex; flex-direction: column; overflow: hidden;
+  /* Scale down to fit any screen smaller than 600px */
+  transform: scale(var(--glass-scale, 1));
+  transform-origin: center center;
 }
 
 /* Lens frame — subtle border simulating a display glass */

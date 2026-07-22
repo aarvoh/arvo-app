@@ -1383,6 +1383,17 @@ export default function GlassHUD() {
     return () => { window.removeEventListener('mousemove', bumpControls); window.removeEventListener('touchstart', bumpControls); };
   }, []);
 
+  // Scale 600×600 shell to fit any screen (phone, tablet, PC)
+  useEffect(() => {
+    function applyScale() {
+      const s = Math.min(window.innerWidth / 600, window.innerHeight / 600, 1);
+      document.documentElement.style.setProperty('--glass-scale', s.toFixed(4));
+    }
+    applyScale();
+    window.addEventListener('resize', applyScale);
+    return () => window.removeEventListener('resize', applyScale);
+  }, []);
+
   useEffect(() => {
     function onFsChange() { setIsFullscreen(!!document.fullscreenElement); }
     document.addEventListener('fullscreenchange', onFsChange);
