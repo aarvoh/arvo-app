@@ -546,7 +546,7 @@ export default function Maps() {
     }
   }
 
-  function startVoiceSearch() {
+  function startVoiceSearch(retries = 1) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
     // If a session is running: kill it (toggle off), null callbacks first to prevent ghost fires
@@ -565,7 +565,14 @@ export default function Maps() {
     recog.onstart  = () => setVoiceListening(true);
     recog.onresult = e => { setSearchQuery(e.results[0][0].transcript); setSearchOpen(true); };
     recog.onend    = () => { voiceRecogRef.current = null; setVoiceListening(false); };
-    recog.onerror  = () => { voiceRecogRef.current = null; setVoiceListening(false); };
+    recog.onerror  = (ev) => {
+      voiceRecogRef.current = null;
+      setVoiceListening(false);
+      // Android Chrome fires no-speech after ~2s — retry once so user has more time
+      if (ev.error === 'no-speech' && retries > 0) {
+        setTimeout(() => startVoiceSearch(retries - 1), 200);
+      }
+    };
     voiceRecogRef.current = recog;
     try { recog.start(); } catch { voiceRecogRef.current = null; setVoiceListening(false); }
   }

@@ -116,10 +116,10 @@ export async function getCurrentlyPlaying() {
   try { return await api('/me/player/currently-playing'); } catch { return null; }
 }
 
-export async function play() { try { await api('/me/player/play', 'PUT'); } catch {} }
-export async function pause() { try { await api('/me/player/pause', 'PUT'); } catch {} }
-export async function next() { try { await api('/me/player/next', 'POST'); } catch {} }
-export async function previous() { try { await api('/me/player/previous', 'POST'); } catch {} }
+export async function play() { await api('/me/player/play', 'PUT'); }
+export async function pause() { await api('/me/player/pause', 'PUT'); }
+export async function next() { await api('/me/player/next', 'POST'); }
+export async function previous() { await api('/me/player/previous', 'POST'); }
 
 export async function searchAndPlay(query) {
   const data = await api(`/search?q=${encodeURIComponent(query)}&type=track&limit=1`);

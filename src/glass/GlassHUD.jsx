@@ -963,7 +963,7 @@ export default function GlassHUD() {
     voiceActiveRef.current = true;
     transcriptRef.current = '';
     // On mobile the mic needs ~300ms to release from wake listener before a new session
-    if (wakeWasActive && noSpeechRetries === 4) {
+    if (wakeWasActive && noSpeechRetries === 2) {
       setTimeout(() => _launchVoiceRecog(noSpeechRetries), 300);
       return;
     }
@@ -1107,28 +1107,38 @@ export default function GlassHUD() {
       }
 
       // ── SPOTIFY PLAYBACK CONTROLS ──
+      const _spErr = (e) => {
+        const m = e?.message || '';
+        if (m.includes('404')) return 'Open Spotify on your phone first';
+        if (m.includes('403')) return 'Spotify Premium is required for playback control';
+        return 'Spotify error — try again';
+      };
       if (/^pause(?: (?:the )?(?:music|song|playback|spotify|it))?$/.test(cmd)) {
-        if (spotifyConn) { try { await spotifyPause(); setMusicPlaying(false); } catch {} }
-        setHudMode('idle');
-        speakText(spotifyConn ? 'Paused' : 'Spotify not connected', backToWake);
+        if (spotifyConn) {
+          try { await spotifyPause(); setMusicPlaying(false); speakText('Paused', backToWake); }
+          catch (e) { const m = _spErr(e); setAnswer(m); setHudMode('answer'); setAnswerExiting(false); speakText(m, backToWake); }
+        } else { setHudMode('idle'); speakText('Spotify not connected', backToWake); }
         return;
       }
       if (/^(?:resume(?: (?:the )?(?:music|song|spotify|playback|it))?|continue(?: playing)?|play again)$/.test(cmd)) {
-        if (spotifyConn) { try { await spotifyPlay(); setMusicPlaying(true); } catch {} }
-        setHudMode('idle');
-        speakText(spotifyConn ? 'Resuming' : 'Spotify not connected', backToWake);
+        if (spotifyConn) {
+          try { await spotifyPlay(); setMusicPlaying(true); speakText('Resuming', backToWake); }
+          catch (e) { const m = _spErr(e); setAnswer(m); setHudMode('answer'); setAnswerExiting(false); speakText(m, backToWake); }
+        } else { setHudMode('idle'); speakText('Spotify not connected', backToWake); }
         return;
       }
       if (/^(?:next|skip)(?: (?:this\s+|the\s+)?(?:song|track|one))?$/.test(cmd)) {
-        if (spotifyConn) { try { await spotifyNext(); } catch {} }
-        setHudMode('idle');
-        speakText(spotifyConn ? 'Skipped' : 'Spotify not connected', backToWake);
+        if (spotifyConn) {
+          try { await spotifyNext(); speakText('Skipped', backToWake); }
+          catch (e) { const m = _spErr(e); setAnswer(m); setHudMode('answer'); setAnswerExiting(false); speakText(m, backToWake); }
+        } else { setHudMode('idle'); speakText('Spotify not connected', backToWake); }
         return;
       }
       if (/^(?:previous|prev)(?: (?:song|track|one))?$|^(?:last song|play previous|go to previous)$/.test(cmd)) {
-        if (spotifyConn) { try { await spotifyPrev(); } catch {} }
-        setHudMode('idle');
-        speakText(spotifyConn ? 'Going back' : 'Spotify not connected', backToWake);
+        if (spotifyConn) {
+          try { await spotifyPrev(); speakText('Going back', backToWake); }
+          catch (e) { const m = _spErr(e); setAnswer(m); setHudMode('answer'); setAnswerExiting(false); speakText(m, backToWake); }
+        } else { setHudMode('idle'); speakText('Spotify not connected', backToWake); }
         return;
       }
 
@@ -1280,9 +1290,10 @@ export default function GlassHUD() {
         /\b(song|sonnet|music|track|spotify|audio|playing|playback)\b/i.test(cmd) &&
         !/\b(play|open|start|next|skip|previous|navigate|find|take me|get me)\b/i.test(cmd)
       ) {
-        if (spotifyConn) { try { await spotifyPause(); setMusicPlaying(false); } catch {} }
-        setHudMode('idle');
-        speakText(spotifyConn ? 'Paused' : 'Spotify not connected', backToWake);
+        if (spotifyConn) {
+          try { await spotifyPause(); setMusicPlaying(false); speakText('Paused', backToWake); }
+          catch (e) { const m = _spErr(e); setAnswer(m); setHudMode('answer'); setAnswerExiting(false); speakText(m, backToWake); }
+        } else { setHudMode('idle'); speakText('Spotify not connected', backToWake); }
         return;
       }
 
