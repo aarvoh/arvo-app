@@ -169,12 +169,17 @@ export default function GlassActivity({ open, setOpen, openDragOffset, spotifyCo
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { showToast('Voice not supported in this browser'); return; }
     if (listening) { recogRef.current?.stop(); setListening(false); return; }
+    if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
     const recog = new SR();
     recog.lang = 'en-US'; recog.interimResults = false;
     recog.onstart  = () => setListening(true);
-    recog.onresult = e => setComposerValue(e.results[0][0].transcript);
-    recog.onend    = () => setListening(false);
-    recog.onerror  = () => setListening(false);
+    recog.onresult = e => {
+      const t = e.results[0][0].transcript;
+      setComposerValue(t);
+      sendTyped(t);
+    };
+    recog.onend    = () => { setListening(false); recogRef.current = null; };
+    recog.onerror  = () => { setListening(false); recogRef.current = null; };
     recogRef.current = recog; recog.start();
   }
 
@@ -199,15 +204,15 @@ export default function GlassActivity({ open, setOpen, openDragOffset, spotifyCo
   }
 
   // ── send ─────────────────────────────────────────────────────────
-  async function sendTyped() {
-    const val = composerValue.trim();
+  async function sendTyped(textOverride) {
+    const val = (textOverride !== undefined ? textOverride : composerValue).trim();
     if (!val && !capturedImage) return;
     const hasImage = !!capturedImage, image = capturedImage;
     const id = `t${Date.now()}`;
     const newEntry = {
       id, kind: hasImage ? 'vision' : 'typed', source: 'phone',
       cmd: `"${val || 'identify this'}"`,
-      meta: hasImage ? 'camera frame attached' : 'typed from phone',
+      meta: hasImage ? 'camera frame attached' : textOverride !== undefined ? 'voice · phone' : 'typed from phone',
       hasFrame: hasImage, capturedThumb: hasImage ? `data:image/jpeg;base64,${image}` : null,
       status: 'thinking', ts: Date.now(),
     };
