@@ -2,7 +2,7 @@
 // When the page URL has ?code=XXXXXX, connects to the relay as 'glass'.
 // Otherwise falls back to BroadcastChannel (works only in same browser).
 
-const RELAY_URL = 'wss://arvo-app-production-5c0c.up.railway.app';
+const RELAY_URL = 'wss://arvo-app-production-2129.up.railway.app';
 
 const urlCode = new URLSearchParams(window.location.search).get('code');
 
