@@ -1,8 +1,54 @@
-// BroadcastChannel connecting the phone app tab and the /glass HUD tab.
-// Messages sent here are received by all OTHER tabs on the same channel name.
-// A tab never receives its own messages.
-const channel = typeof BroadcastChannel !== 'undefined'
-  ? new BroadcastChannel('arvo_glass')
-  : null;
+// GlassChannel — BroadcastChannel for same-device, WebSocket relay for cross-device.
+// When the page URL has ?code=XXXXXX, connects to the relay as 'glass'.
+// Otherwise falls back to BroadcastChannel (works only in same browser).
+
+const RELAY_URL = 'wss://arvo-app-production-2129.up.railway.app';
+
+const urlCode = new URLSearchParams(window.location.search).get('code');
+
+let channel;
+
+if (urlCode) {
+  // WebSocket relay mode — works across devices (native app → relay → glass)
+  const ws = new WebSocket(RELAY_URL);
+  const listeners = new Map();
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'join', code: urlCode, role: 'glass' }));
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      // Wrap as MessageEvent-like so GlassHUD's handle(e) → e.data works
+      const fakeEvent = { data: msg };
+      listeners.get('message')?.forEach(fn => fn(fakeEvent));
+    } catch {}
+  };
+
+  ws.onerror = () => {};
+  ws.onclose = () => {
+    // reconnect after 3s
+    setTimeout(() => { window.location.reload(); }, 3000);
+  };
+
+  channel = {
+    postMessage(msg) {
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+    },
+    addEventListener(type, fn) {
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type).add(fn);
+    },
+    removeEventListener(type, fn) {
+      listeners.get(type)?.delete(fn);
+    },
+  };
+} else {
+  // BroadcastChannel mode — same browser only (web app ↔ glass HUD on same device)
+  channel = typeof BroadcastChannel !== 'undefined'
+    ? new BroadcastChannel('arvo_glass')
+    : null;
+}
 
 export default channel;
