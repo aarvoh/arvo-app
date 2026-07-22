@@ -42,7 +42,10 @@ if (urlCode) {
 
   channel = {
     postMessage(msg) {
-      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        // Include room code + role so the relay can route to the right phone
+        ws.send(JSON.stringify({ ...msg, code: urlCode, channel: urlCode, from: 'glass' }));
+      }
     },
     addEventListener(type, fn) {
       if (!listeners.has(type)) listeners.set(type, new Set());
