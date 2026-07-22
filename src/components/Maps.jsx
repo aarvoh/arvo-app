@@ -50,6 +50,12 @@ function fmtDur(text) {
     .replace(/\s+/g, ' ')
     .trim();
 }
+function fmtMin(mins) {
+  if (mins == null) return null;
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
 
 function stepInstruction(step) {
   const m = step?.maneuver || '';
@@ -722,7 +728,7 @@ export default function Maps() {
                   <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
                 </svg>
                 <div className="preview-mode-info">
-                  <div className="preview-mode-time">{preview.driveMin != null ? `${preview.driveMin} min` : '—'}</div>
+                  <div className="preview-mode-time">{fmtMin(preview.driveMin) || '—'}</div>
                   <div className="preview-mode-dist">{preview.driveDist || '—'} · Drive</div>
                 </div>
                 <span className="preview-go-btn">Go</span>
@@ -732,7 +738,7 @@ export default function Maps() {
                   <circle cx="13" cy="4" r="2"/><path d="M9.5 9.5L11 16l-3 2M14.5 9.5L13 16l3 2M9.5 9.5c1-1.5 3-2 5 0"/>
                 </svg>
                 <div className="preview-mode-info">
-                  <div className="preview-mode-time">{preview.walkMin != null ? `${preview.walkMin} min` : '—'}</div>
+                  <div className="preview-mode-time">{fmtMin(preview.walkMin) || '—'}</div>
                   <div className="preview-mode-dist">{preview.walkDist || '—'} · Walk</div>
                 </div>
                 <span className="preview-go-btn">Go</span>
