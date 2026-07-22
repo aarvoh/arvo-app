@@ -1272,6 +1272,20 @@ export default function GlassHUD() {
         return;
       }
 
+      // ── LAST-CHANCE MUSIC CONTROL CATCH ──
+      // "claude sonnet" is how en-IN Chrome transcribes "pause/close the song" with Indian accent.
+      // Catches any stop-intent word paired with any music-context word before sending to Claude.
+      if (
+        /\b(pause|stop|close|claude|paws|halt|silence|mute)\b/i.test(cmd) &&
+        /\b(song|sonnet|music|track|spotify|audio|playing|playback)\b/i.test(cmd) &&
+        !/\b(play|open|start|next|skip|previous|navigate|find|take me|get me)\b/i.test(cmd)
+      ) {
+        if (spotifyConn) { try { await spotifyPause(); setMusicPlaying(false); } catch {} }
+        setHudMode('idle');
+        speakText(spotifyConn ? 'Paused' : 'Spotify not connected', backToWake);
+        return;
+      }
+
       // ── VISUAL — Claude Vision with camera frame ──
       const frame = captureFrame(videoRef.current);
       const isVisual = frame && /\bsee\b|look|what.*\b(this|that|here|there|front|around)\b|describe|read this|scan/i.test(text);

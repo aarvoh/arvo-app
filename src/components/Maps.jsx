@@ -549,20 +549,25 @@ export default function Maps() {
   function startVoiceSearch() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
-    // Tear down any existing session first
-    if (voiceRecogRef.current) {
-      try { voiceRecogRef.current.abort(); } catch {}
+    // If a session is running: kill it (toggle off), null callbacks first to prevent ghost fires
+    const existing = voiceRecogRef.current;
+    if (existing) {
       voiceRecogRef.current = null;
+      existing.onstart = null; existing.onresult = null; existing.onend = null; existing.onerror = null;
+      try { existing.abort(); } catch {}
+      setVoiceListening(false);
+      return;
     }
-    if (voiceListening) { setVoiceListening(false); return; }
+    // Start fresh — clear any stale search so mic is always usable
+    setSearchQuery(''); setSearchResults([]); setSearchOpen(false);
     const recog = new SR();
     recog.lang = 'en-US'; recog.maxAlternatives = 1;
     recog.onstart  = () => setVoiceListening(true);
     recog.onresult = e => { setSearchQuery(e.results[0][0].transcript); setSearchOpen(true); };
-    recog.onend  = () => { setVoiceListening(false); voiceRecogRef.current = null; };
-    recog.onerror = () => { setVoiceListening(false); voiceRecogRef.current = null; };
+    recog.onend    = () => { voiceRecogRef.current = null; setVoiceListening(false); };
+    recog.onerror  = () => { voiceRecogRef.current = null; setVoiceListening(false); };
     voiceRecogRef.current = recog;
-    try { recog.start(); } catch { setVoiceListening(false); voiceRecogRef.current = null; }
+    try { recog.start(); } catch { voiceRecogRef.current = null; setVoiceListening(false); }
   }
 
   function recenter() {
@@ -694,12 +699,15 @@ export default function Maps() {
             />
             {selectedPlace
               ? <button className="search-clear-btn" onClick={dismissPreview}>✕</button>
-              : searchQuery
-                ? <button className="search-clear-btn" onClick={() => { setSearchQuery(''); setSearchResults([]); }}>✕</button>
-                : <button className={`mic-pill${voiceListening ? ' active' : ''}`} onClick={startVoiceSearch}>
+              : <>
+                  {searchQuery && !voiceListening && (
+                    <button className="search-clear-btn" onClick={() => { setSearchQuery(''); setSearchResults([]); setSearchOpen(false); }}>✕</button>
+                  )}
+                  <button className={`mic-pill${voiceListening ? ' active' : ''}`} onClick={startVoiceSearch}>
                     <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3"/></svg>
                     {voiceListening ? 'listening…' : 'tap'}
                   </button>
+                </>
             }
             {showDropdown && (
               <div className="search-dropdown">
