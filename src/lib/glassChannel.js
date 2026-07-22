@@ -10,31 +10,39 @@ let channel;
 
 if (urlCode) {
   // WebSocket relay mode — works across devices (native app → relay → glass)
-  const ws = new WebSocket(RELAY_URL);
   const listeners = new Map();
+  let ws = null;
+  let reconnectTimer = null;
 
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'join', code: urlCode, role: 'glass' }));
-  };
+  function connectWs() {
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    ws = new WebSocket(RELAY_URL);
 
-  ws.onmessage = (e) => {
-    try {
-      const msg = JSON.parse(e.data);
-      // Wrap as MessageEvent-like so GlassHUD's handle(e) → e.data works
-      const fakeEvent = { data: msg };
-      listeners.get('message')?.forEach(fn => fn(fakeEvent));
-    } catch {}
-  };
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'join', code: urlCode, role: 'glass' }));
+    };
 
-  ws.onerror = () => {};
-  ws.onclose = () => {
-    // reconnect after 3s
-    setTimeout(() => { window.location.reload(); }, 3000);
-  };
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        const fakeEvent = { data: msg };
+        listeners.get('message')?.forEach(fn => fn(fakeEvent));
+      } catch {}
+    };
+
+    ws.onerror = () => {};
+
+    ws.onclose = () => {
+      // Reconnect without reloading the page — a reload breaks the connection loop
+      reconnectTimer = setTimeout(connectWs, 3000);
+    };
+  }
+
+  connectWs();
 
   channel = {
     postMessage(msg) {
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
     },
     addEventListener(type, fn) {
       if (!listeners.has(type)) listeners.set(type, new Set());
