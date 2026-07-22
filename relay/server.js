@@ -27,6 +27,11 @@ wss.on('connection', (ws) => {
         return;
       }
 
+      if (msg.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong' }));
+        return;
+      }
+
       if (joinedRoom) broadcast(joinedRoom, ws, msg);
     } catch {}
   });
@@ -52,6 +57,13 @@ function broadcast(code, sender, msg) {
     if (peer !== sender && peer.readyState === 1) peer.send(str);
   }
 }
+
+// Keep-alive: clean up empty rooms every 5 minutes
+setInterval(() => {
+  for (const [code, peers] of rooms) {
+    if (peers.size === 0) rooms.delete(code);
+  }
+}, 5 * 60 * 1000);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => console.log(`ARVO Relay on :${PORT}`));
