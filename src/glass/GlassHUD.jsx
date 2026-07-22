@@ -191,7 +191,14 @@ function speakText(text, onDone) {
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 0.95; utter.pitch = 1; utter.volume = _vol;
-  utter.onend = () => onDone?.();
+  let fired = false;
+  let safetyTimer;
+  // finish() is idempotent — called by onend, onerror, or the safety timeout
+  const finish = () => { if (fired) return; fired = true; clearTimeout(safetyTimer); onDone?.(); };
+  // Safety net: if browser never fires onend (common on mobile Chrome), still unblock
+  safetyTimer = setTimeout(finish, Math.max(3000, text.length * 70 + 1500));
+  utter.onend  = finish;
+  utter.onerror = finish;
   const trySpeak = () => {
     const voices = window.speechSynthesis.getVoices();
     const voice = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
@@ -640,12 +647,18 @@ export default function GlassHUD() {
     sessionTimerRef.current = setTimeout(() => {
       inSessionRef.current = false;
       setInSession(false);
+      // abort any stuck voice query so startWakeListener isn't blocked
+      if (voiceActiveRef.current) {
+        try { queryRecogRef.current?.abort(); } catch {}
+        voiceActiveRef.current = false;
+        setVoiceActive(false);
+      }
       startWakeListener();
     }, 5000);
-    // brief pause (let TTS fully end) then auto-listen
+    // brief pause then auto-listen for follow-up — 1 retry only so it returns fast
     setTimeout(() => {
       if (inSessionRef.current && !voiceActiveRef.current) {
-        startVoiceQuery();
+        startVoiceQuery(1);
       }
     }, 900);
   }
@@ -941,7 +954,7 @@ export default function GlassHUD() {
   }
 
   // ── voice query ──
-  function startVoiceQuery(noSpeechRetries = 4) {
+  function startVoiceQuery(noSpeechRetries = 2) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('Use Chrome — Web Speech API required.'); return; }
     const wakeWasActive = wakeActiveRef.current;
@@ -990,11 +1003,11 @@ export default function GlassHUD() {
       let text = transcriptRef.current.trim();
       setVoiceTranscript('');
 
-      // no speech — if in session try again, else go to wake listener
+      // no speech — if in session try once more, else go to wake listener
       if (!text) {
         if (inSessionRef.current) {
           setTimeout(() => {
-            if (inSessionRef.current && !voiceActiveRef.current) startVoiceQuery();
+            if (inSessionRef.current && !voiceActiveRef.current) startVoiceQuery(1);
           }, 400);
         } else {
           setHudMode('idle');
@@ -1307,7 +1320,7 @@ export default function GlassHUD() {
     };
 
     recog.onerror = (ev) => {
-      // Mobile Chrome fires no-speech after ~2s — retry up to 4 times (~10s total window)
+      // Mobile Chrome fires no-speech after ~2s — retry up to 2 times (~6s total window)
       if (ev.error === 'no-speech' && noSpeechRetries > 0) {
         setTimeout(() => startVoiceQuery(noSpeechRetries - 1), 150);
         return;
