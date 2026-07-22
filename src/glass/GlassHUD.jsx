@@ -1092,6 +1092,64 @@ export default function GlassHUD() {
         speakText('Done', backToWake);
         return;
       }
+
+      // ── SPOTIFY PLAYBACK CONTROLS ──
+      if (/^(pause|pause music|pause spotify|stop spotify)$/.test(cmd)) {
+        if (spotifyConn) { try { await spotifyPause(); setMusicPlaying(false); } catch {} }
+        setHudMode('idle');
+        speakText(spotifyConn ? 'Paused' : 'Spotify not connected', backToWake);
+        return;
+      }
+      if (/^(resume|resume music|resume spotify|continue|play again)$/.test(cmd)) {
+        if (spotifyConn) { try { await spotifyPlay(); setMusicPlaying(true); } catch {} }
+        setHudMode('idle');
+        speakText(spotifyConn ? 'Resuming' : 'Spotify not connected', backToWake);
+        return;
+      }
+      if (/^(next|next song|next track|skip|skip this|skip song)$/.test(cmd)) {
+        if (spotifyConn) { try { await spotifyNext(); } catch {} }
+        setHudMode('idle');
+        speakText(spotifyConn ? 'Skipped' : 'Spotify not connected', backToWake);
+        return;
+      }
+      if (/^(previous|previous song|go back|back|last song|play previous)$/.test(cmd)) {
+        if (spotifyConn) { try { await spotifyPrev(); } catch {} }
+        setHudMode('idle');
+        speakText(spotifyConn ? 'Going back' : 'Spotify not connected', backToWake);
+        return;
+      }
+
+      // ── PLAY SPECIFIC SONG / ARTIST on Spotify ──
+      const _playMatch = cmd.match(/^play\s+(?:me\s+|some\s+)?(.+?)(?:\s+(?:on\s+)?spotify)?$/i);
+      const _isGenericPlay = /^play\s+(something|music|a song|any|some music|chill|calm|sad|happy|rock|pop|jazz|classical|background)/i.test(cmd);
+      if (_playMatch && !_isGenericPlay) {
+        const _q = _playMatch[1].trim();
+        if (spotifyConn) {
+          setHudMode('processing');
+          try {
+            const _track = await searchAndPlay(_q);
+            if (_track) {
+              const _ans = `Playing ${_track.name} by ${_track.artists[0].name}`;
+              setMusicData({ track: _track.name, artist: _track.artists.map(a => a.name).join(', '), albumArt: _track.album?.images?.[0]?.url || null, source: 'spotify' });
+              setMusicPlaying(true); setShowMusic(true);
+              setAnswer(_ans); setHudMode('answer'); setAnswerExiting(false);
+              speakText(_ans, backToWake);
+            } else {
+              const _ans = `Couldn't find ${_q} on Spotify`;
+              setAnswer(_ans); setHudMode('answer'); setAnswerExiting(false);
+              speakText(_ans, backToWake);
+            }
+          } catch {
+            setAnswer('Spotify error — try again'); setHudMode('answer'); setAnswerExiting(false);
+            speakText('Spotify error', backToWake);
+          }
+        } else {
+          setAnswer('Spotify not connected. Open Settings to connect.'); setHudMode('answer'); setAnswerExiting(false);
+          speakText('Connect Spotify first in Settings', backToWake);
+        }
+        return;
+      }
+
       if (/open maps|show maps|navigate|directions|start navigation/i.test(cmd)) {
         triggerNav();
         if (!navData) {

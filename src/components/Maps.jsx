@@ -492,18 +492,20 @@ export default function Maps() {
   function startVoiceSearch() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
-    if (voiceListening) { voiceRecogRef.current?.stop(); setVoiceListening(false); return; }
-    if (voiceRecogRef.current) { try { voiceRecogRef.current.abort(); } catch {} voiceRecogRef.current = null; }
+    // Tear down any existing session first
+    if (voiceRecogRef.current) {
+      try { voiceRecogRef.current.abort(); } catch {}
+      voiceRecogRef.current = null;
+    }
+    if (voiceListening) { setVoiceListening(false); return; }
     const recog = new SR();
-    recog.lang = 'en-US'; recog.interimResults = false; recog.maxAlternatives = 1;
+    recog.lang = 'en-US'; recog.maxAlternatives = 1;
     recog.onstart  = () => setVoiceListening(true);
-    recog.onresult = e => {
-      const q = e.results[0][0].transcript;
-      setSearchQuery(q); setSearchOpen(true);
-    };
+    recog.onresult = e => { setSearchQuery(e.results[0][0].transcript); setSearchOpen(true); };
     recog.onend  = () => { setVoiceListening(false); voiceRecogRef.current = null; };
     recog.onerror = () => { setVoiceListening(false); voiceRecogRef.current = null; };
-    voiceRecogRef.current = recog; recog.start();
+    voiceRecogRef.current = recog;
+    try { recog.start(); } catch { setVoiceListening(false); voiceRecogRef.current = null; }
   }
 
   function recenter() {
