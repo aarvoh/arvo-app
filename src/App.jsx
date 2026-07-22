@@ -47,6 +47,17 @@ export default function App() {
     }
   }, []);
 
+  // Handle Web Share Target (e.g. share from Google Maps → ARVO)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('share')) {
+      const raw = params.get('text') || params.get('title') || '';
+      const q = raw.split('\n')[0].trim();
+      if (q) { sessionStorage.setItem('arvo_share_query', q); setActiveTab('maps'); }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   function onDragStart(clientY) {
     if (activityOpen) return;
     dragInfo.current = { active: true, startY: clientY };

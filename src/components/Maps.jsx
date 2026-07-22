@@ -42,6 +42,14 @@ function haversine([lat1, lon1], [lat2, lon2]) {
 }
 function fmtDist(km) { return km < 1 ? `${Math.round(km*1000)} m` : `${km.toFixed(1)} km`; }
 function stripHtml(html) { return (html||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim(); }
+function fmtDur(text) {
+  if (!text) return text;
+  return text
+    .replace(/(\d+)\s*hours?\s*/i, '$1 h ')
+    .replace(/(\d+)\s*mins?/i, '$1 min')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 function stepInstruction(step) {
   const m = step?.maneuver || '';
@@ -136,6 +144,7 @@ export default function Maps() {
   const currentStepIdxRef      = useRef(0);
   const followModeRef          = useRef(false);
   const searchTimer            = useRef(null);
+  const pendingShareRef        = useRef(null);
 
   const [mapReady,        setMapReady]        = useState(false);
   const [locStatus,       setLocStatus]       = useState('loading');
@@ -160,6 +169,8 @@ export default function Maps() {
   const [preview,         setPreview]         = useState(null);
   const [previewLoading,  setPreviewLoading]  = useState(false);
 
+  const [sheetMinimized,  setSheetMinimized]  = useState(false);
+
   const [navActive,       setNavActive]       = useState(false);
   const [navPlace,        setNavPlace]        = useState(null);
   const [routeInfo,       setRouteInfo]       = useState(null);
@@ -178,6 +189,19 @@ export default function Maps() {
       b.addEventListener('levelchange', () => setBattery(Math.round(b.level * 100)));
     });
   }, []);
+
+  // ── Web Share Target: read share query from sessionStorage (set by App.jsx) ──
+  useEffect(() => {
+    const q = sessionStorage.getItem('arvo_share_query');
+    if (q) { pendingShareRef.current = q; sessionStorage.removeItem('arvo_share_query'); }
+  }, []);
+
+  // ── Trigger pending share search once map is ready ──
+  useEffect(() => {
+    if (!mapReady || !pendingShareRef.current) return;
+    const q = pendingShareRef.current; pendingShareRef.current = null;
+    setSearchQuery(q); setSearchOpen(true);
+  }, [mapReady]);
 
   // ── init Google Maps ──
   useEffect(() => {
@@ -418,13 +442,13 @@ export default function Maps() {
       directionsRendererRef.current?.setDirections(result);
       const leg = result.routes[0].legs[0];
       const steps = leg.steps;
-      setRouteInfo({ dist: leg.distance.text, dur: leg.duration.text, durSec: leg.duration.value, steps });
+      setRouteInfo({ dist: leg.distance.text, dur: fmtDur(leg.duration.text), durSec: leg.duration.value, steps });
       glassChannel?.postMessage({
         type: 'nav_start',
         instruction: stepInstruction(steps[0]),
         street: stepStreet(steps[0]),
         distance: steps[0].distance.text,
-        dest: place.name, eta: leg.duration.text,
+        dest: place.name, eta: fmtDur(leg.duration.text),
       });
       setTimeout(() => {
         if (userCoordsRef.current && followModeRef.current) {
@@ -642,29 +666,42 @@ export default function Maps() {
       {locStatus === 'error'   && <div className="location-banner denied">Google Maps failed to load — enable Maps JavaScript API, Places API, Directions API & Geocoding API in Google Cloud Console for your key</div>}
 
       {showNearby && (
-        <div className="sheet">
-          <div className="sheet-grip" />
-          <div className="sheet-title">
-            {activeChip || 'Nearby'}
-            {displayedPlaces.length > 0 && <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--blue-bright)', marginLeft:8, fontWeight:400 }}>{displayedPlaces.length} places</span>}
+        sheetMinimized ? (
+          <button className="sheet-expand-pill" onClick={() => setSheetMinimized(false)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:14, height:14 }}>
+              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+            {activeChip || 'Nearby'}{displayedPlaces.length > 0 && ` · ${displayedPlaces.length}`}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width:13, height:13 }}><path d="M18 15l-6-6-6 6"/></svg>
+          </button>
+        ) : (
+          <div className="sheet">
+            <div className="sheet-grip" />
+            <button className="sheet-collapse-btn" onClick={() => setSheetMinimized(true)} title="Minimize">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width:14, height:14 }}><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div className="sheet-title">
+              {activeChip || 'Nearby'}
+              {displayedPlaces.length > 0 && <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--blue-bright)', marginLeft:8, fontWeight:400 }}>{displayedPlaces.length} places</span>}
+            </div>
+            <div className="sheet-sub">{currentAddress ? `Near ${currentAddress}` : locStatus === 'ok' ? 'Tap a place to see time and distance' : 'Waiting for location…'}</div>
+            {(nearbyLoading || chipLoading) && (
+              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 0', color:'var(--paper-faint)', fontSize:13 }}>
+                <span className="spinner" />{chipLoading ? `Finding ${activeChip}…` : 'Finding places near you…'}
+              </div>
+            )}
+            {!nearbyLoading && !chipLoading && displayedPlaces.length === 0 && locStatus === 'ok' && (
+              <div style={{ fontSize:13, color:'var(--paper-faint)', padding:'10px 0' }}>No places found — try a different category</div>
+            )}
+            {displayedPlaces.slice(0,7).map((p, i) => (
+              <div key={i} className="place-row" onClick={() => selectPlace(p)}>
+                <div className="place-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+                <div className="place-main"><div className="place-name">{p.name}</div><div className="place-meta">{p.label}</div></div>
+                <div className="place-dist">{fmtDist(p.distKm)}</div>
+              </div>
+            ))}
           </div>
-          <div className="sheet-sub">{currentAddress ? `Near ${currentAddress}` : locStatus === 'ok' ? 'Tap a place to see time and distance' : 'Waiting for location…'}</div>
-          {(nearbyLoading || chipLoading) && (
-            <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 0', color:'var(--paper-faint)', fontSize:13 }}>
-              <span className="spinner" />{chipLoading ? `Finding ${activeChip}…` : 'Finding places near you…'}
-            </div>
-          )}
-          {!nearbyLoading && !chipLoading && displayedPlaces.length === 0 && locStatus === 'ok' && (
-            <div style={{ fontSize:13, color:'var(--paper-faint)', padding:'10px 0' }}>No places found — try a different category</div>
-          )}
-          {displayedPlaces.slice(0,7).map((p, i) => (
-            <div key={i} className="place-row" onClick={() => selectPlace(p)}>
-              <div className="place-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
-              <div className="place-main"><div className="place-name">{p.name}</div><div className="place-meta">{p.label}</div></div>
-              <div className="place-dist">{fmtDist(p.distKm)}</div>
-            </div>
-          ))}
-        </div>
+        )
       )}
 
       {showPreview && (
