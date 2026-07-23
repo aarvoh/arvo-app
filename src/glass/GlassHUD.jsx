@@ -437,6 +437,9 @@ export default function GlassHUD() {
   const [showFitness,    setShowFitness]    = useState(false);
   const [fitnessData,    setFitnessData]    = useState({ bpm: 0, zone: 1, duration: 0, calories: 0, steps: 0, distance: 0, workoutType: 'run' });
   const [fitBpmHistory,  setFitBpmHistory]  = useState([]);
+  const notifKeyRef   = useRef(null);
+  const [youtubeData, setYoutubeData] = useState(null);
+  const [showYoutube, setShowYoutube] = useState(false);
 
   const cpDragY   = useRef(null);
   const cpDNDRef  = useRef(false);
@@ -596,6 +599,7 @@ export default function GlassHUD() {
         case 'notification':
           if (cpDNDRef.current) break;
           setNotifData({ app: msg.app, sender: msg.sender, preview: msg.preview });
+          notifKeyRef.current = msg.key || null;
           setShowNotif(true);
           speakText(`${msg.app} from ${msg.sender}. ${msg.preview}`);
           setTimeout(() => setShowNotif(false), 5000);
@@ -630,6 +634,12 @@ export default function GlassHUD() {
           setShowCall(false);
           setCallConnected(false);
           setCallDuration(0);
+          break;
+        case 'youtube_playing':
+          if (cpDNDRef.current) break;
+          setYoutubeData({ title: msg.title, channel: msg.channel });
+          setShowYoutube(true);
+          setTimeout(() => setShowYoutube(false), 8000);
           break;
         default: break;
       }
@@ -1186,6 +1196,46 @@ export default function GlassHUD() {
           return;
         }
       }
+      // Reply to notification
+      {
+        const _replyMatch = cmd.match(/^reply\s+(.+)$/i);
+        if (_replyMatch && notifKeyRef.current) {
+          const _replyText = _replyMatch[1].trim();
+          glassChannel?.postMessage({ type: 'notification_reply', key: notifKeyRef.current, text: _replyText });
+          notifKeyRef.current = null;
+          setShowNotif(false);
+          speakText('Reply sent', backToWake);
+          return;
+        }
+      }
+      // Share photo to Instagram or Snapchat via browser Web Share API
+      {
+        const _shareMatch = cmd.match(/^share (?:to )?(instagram|snapchat)$/i);
+        if (_shareMatch) {
+          const _dest = _shareMatch[1].toLowerCase();
+          const frame = captureFrame(videoRef.current);
+          if (frame) {
+            try {
+              const byteStr = atob(frame);
+              const arr = new Uint8Array(byteStr.length);
+              for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
+              const blob = new Blob([arr], { type: 'image/jpeg' });
+              const file = new File([blob], 'arvo_photo.jpg', { type: 'image/jpeg' });
+              if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'ARVO Photo' });
+                speakText('Share sheet opened', backToWake);
+              } else {
+                speakText(`Web Share not supported on this device. Open ${_dest} manually.`, backToWake);
+              }
+            } catch {
+              speakText('Share cancelled', backToWake);
+            }
+          } else {
+            speakText('Camera not ready. Allow camera access first.', backToWake);
+          }
+          return;
+        }
+      }
       if (/open maps|show maps|^navigate$|^directions$|start navigation/i.test(cmd)) {
         triggerNav();
         if (!navData) {
@@ -1514,10 +1564,24 @@ export default function GlassHUD() {
                 <div className="notif-sender">{notifData?.sender}</div>
                 <div className="notif-preview">{notifData?.preview}</div>
               </div>
-              <div className="notif-hint">say "reply"</div>
+              <div className="notif-hint">{notifKeyRef.current ? 'say "reply [message]"' : ''}</div>
             </div>
           );
         })()}
+
+        {/* YouTube now playing toast */}
+        {showYoutube && youtubeData && (
+          <div className="hud-notification visible" style={{ background: 'rgba(255,0,0,0.08)', borderColor: 'rgba(255,0,0,0.25)' }}>
+            <div className="notif-app-icon" style={{ background: 'rgba(255,0,0,0.15)', border: '1px solid rgba(255,0,0,0.3)' }}>
+              <AppIcon app="youtube" size={15} />
+            </div>
+            <div className="notif-body">
+              <div className="notif-app" style={{ color: '#FF0000' }}>YouTube</div>
+              <div className="notif-sender" style={{ fontSize: 11 }}>{youtubeData.title}</div>
+              {youtubeData.channel && <div className="notif-preview">{youtubeData.channel}</div>}
+            </div>
+          </div>
+        )}
 
         {/* Status bar */}
         <div className="hud-top">
