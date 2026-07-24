@@ -789,7 +789,7 @@ export default function GlassHUD() {
     const r = new SR();
     r.continuous = false;
     r.interimResults = true;
-    r.lang = 'en-US';
+    r.lang = 'en-IN';
     r.maxAlternatives = 3;
 
     r.onstart = () => { wakeActiveRef.current = true; setWakeListening(true); };
@@ -806,7 +806,7 @@ export default function GlassHUD() {
 
       // Trigger on "hey" as a word OR any ARVO variant.
       // Chrome sometimes ends the session after just "hey" before the user says "ARVO".
-      const triggered = /\bhey\b/.test(t) || /ar[vwou]/.test(t) || /har[vw]/.test(t);
+      const triggered = /\bh[ae]y\b/.test(t) || /\bar[vwou]/i.test(t) || /\bhar[vwou]/i.test(t) || /\bavo\b/i.test(t) || /\borvo\b/i.test(t);
 
       if (triggered && !voiceActiveRef.current && !handedOff) {
         handedOff = true;
@@ -815,14 +815,14 @@ export default function GlassHUD() {
         setWakeFlash(true);
         setWakeListening(false);
         // 400ms lets the mic fully release before voice query starts
-        setTimeout(() => startVoiceQuery(), 400);
+        setTimeout(() => startVoiceQuery(), 200);
       }
     };
 
     r.onend = () => {
       wakeActiveRef.current = false;
       setWakeTranscript('');
-      if (!handedOff && !voiceActiveRef.current) setTimeout(startWakeListener, 250);
+      if (!handedOff && !voiceActiveRef.current) setTimeout(startWakeListener, 100);
       else if (!handedOff) setWakeListening(false);
     };
     r.onerror = (ev) => {
