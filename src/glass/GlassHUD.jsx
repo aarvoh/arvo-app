@@ -363,6 +363,9 @@ function NavTurnArrow({ instruction = '' }) {
   );
 }
 
+// ─── module-level pairing code (read once from URL) ───────────────
+const _urlCode = new URLSearchParams(window.location.search).get('code');
+
 // ─── component ────────────────────────────────────────────────────
 export default function GlassHUD() {
   const time = useLiveClock();
@@ -418,6 +421,7 @@ export default function GlassHUD() {
   const [cpView,       setCpView]       = useState('main');
   const [battery,      setBattery]      = useState(null);
   const [spotifyConn,  setSpotifyConn]  = useState(() => spotifyIsConnected());
+  const [pairCode,     setPairCode]     = useState('');
 
   // ── settings persistence ──
   const [brightness, setBrightness] = useState(() => Number(localStorage.getItem('arvo_brightness') || 100));
@@ -1483,6 +1487,59 @@ export default function GlassHUD() {
   const wIcon  = weather ? (WMO_ICON[weather.weathercode] ?? '🌡') : null;
   const wLabel = weather ? (WMO[weather.weathercode] ?? '') : null;
   const isAnswer = hudMode === 'answer' && answer;
+
+  // ── pairing screen (shown when no ?code= in URL) ──
+  if (!_urlCode) {
+    const submitPair = () => {
+      const c = pairCode.trim();
+      if (c.length === 6 && /^\d+$/.test(c)) {
+        window.location.href = window.location.pathname + '?code=' + c;
+      }
+    };
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: '#07080A',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'system-ui, sans-serif', color: '#efeffc', userSelect: 'none',
+      }}>
+        <div style={{ fontSize: 11, letterSpacing: 4, color: '#c9a558', fontWeight: 700, marginBottom: 8 }}>ARVO GLASS</div>
+        <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4, letterSpacing: -0.5 }}>Connect to phone</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.38)', marginBottom: 40, textAlign: 'center', lineHeight: 1.5 }}>
+          Tap <strong style={{ color: '#c9a558' }}>Connect</strong> in the ARVO phone app,<br />then enter the 6-digit code below.
+        </div>
+        <input
+          type="tel"
+          inputMode="numeric"
+          maxLength={6}
+          placeholder="______"
+          value={pairCode}
+          onChange={e => setPairCode(e.target.value.replace(/\D/g, ''))}
+          onKeyDown={e => e.key === 'Enter' && submitPair()}
+          autoFocus
+          style={{
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 12, padding: '14px 24px', fontSize: 28, fontWeight: 700,
+            letterSpacing: 10, color: '#c9a558', textAlign: 'center', width: 220,
+            outline: 'none', marginBottom: 20, caretColor: '#c9a558',
+          }}
+        />
+        <button
+          onClick={submitPair}
+          style={{
+            background: pairCode.length === 6 ? '#c9a558' : 'rgba(255,255,255,0.07)',
+            color: pairCode.length === 6 ? '#07080A' : 'rgba(255,255,255,0.3)',
+            border: 'none', borderRadius: 12, padding: '13px 36px',
+            fontSize: 15, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+          }}
+        >
+          Pair Glass
+        </button>
+        <div style={{ marginTop: 48, fontSize: 11, color: 'rgba(255,255,255,0.18)', textAlign: 'center', lineHeight: 1.6 }}>
+          Already paired? Refresh this page — the code<br />stays saved in the URL automatically.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="glass-shell" style={{ filter: brightness !== 100 ? `brightness(${brightness}%)` : undefined }}>
