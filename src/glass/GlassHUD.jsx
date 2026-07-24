@@ -574,7 +574,7 @@ export default function GlassHUD() {
           setHudMode('idle');
           setAnswerExiting(false);
           setAnswer('');
-          speakText(`Navigation started. ${msg.instruction} onto ${msg.street} in ${msg.distance}.`);
+          speakText(`Navigating to ${msg.dest || msg.street || 'your destination'}.`);
           break;
         case 'nav_end':
           setShowNav(false);
@@ -1770,7 +1770,7 @@ export default function GlassHUD() {
                     {navData ? navData.distance : '—'}
                   </div>
                   <div className="npf-street">
-                    {navData ? navData.street : 'Search on your phone'}
+                    {navData ? (navData.street || navData.instruction || 'Navigating…') : 'Search on your phone'}
                   </div>
                 </div>
               </div>
