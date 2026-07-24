@@ -422,6 +422,13 @@ export default function GlassHUD() {
   const [battery,      setBattery]      = useState(null);
   const [spotifyConn,  setSpotifyConn]  = useState(() => spotifyIsConnected());
   const [pairCode,     setPairCode]     = useState('');
+  const [relayOk,      setRelayOk]      = useState(false);
+
+  // poll window.__arvoRelayConnected so we can show a status badge
+  useEffect(() => {
+    const t = setInterval(() => setRelayOk(!!window.__arvoRelayConnected), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // ── settings persistence ──
   const [brightness, setBrightness] = useState(() => Number(localStorage.getItem('arvo_brightness') || 100));
@@ -1677,6 +1684,14 @@ export default function GlassHUD() {
                 <path d="M1.42 9a16 16 0 0 1 21.16 0M5 12.55a11 11 0 0 1 14.08 0M10.71 17.4l1.29 1.6 1.29-1.6a4 4 0 0 0-2.58 0z"/>
               </svg>
               {brainConn === 'connected' ? 'brain' : brainConn === 'reconnecting' ? '…' : 'off'}
+            </div>
+            {/* relay WS status — shows code when not connected so user can verify match */}
+            <div
+              className={`hud-stat${relayOk ? ' ok' : ' dim'}`}
+              style={{ fontFamily: 'monospace', letterSpacing: 1, cursor: 'default' }}
+              title={`Relay WS · code: ${window.__arvoRelayCode || '—'}`}
+            >
+              {relayOk ? '● relay' : `○ ${window.__arvoRelayCode || '—'}`}
             </div>
             <button className="hud-fs-btn" onClick={toggleFullscreen}>
               {isFullscreen

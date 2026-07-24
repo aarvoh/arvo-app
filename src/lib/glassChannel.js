@@ -15,15 +15,20 @@ if (urlCode) {
   let reconnectTimer = null;
   let heartbeatTimer = null;
 
+  // expose relay status for the HUD status badge
+  window.__arvoRelayCode = urlCode;
+  window.__arvoRelayConnected = false;
+
   function announceGlass() {
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'glass_connected', code: urlCode, from: 'glass' }));
+      // include both 'code' AND 'channel' so relays that route by either field work
+      ws.send(JSON.stringify({ type: 'glass_connected', code: urlCode, channel: urlCode, from: 'glass' }));
     }
   }
 
   function sendHeartbeat() {
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'heartbeat_glass', code: urlCode, from: 'glass' }));
+      ws.send(JSON.stringify({ type: 'heartbeat_glass', code: urlCode, channel: urlCode, from: 'glass' }));
     }
   }
 
@@ -34,11 +39,23 @@ if (urlCode) {
     ws = new WebSocket(RELAY_URL);
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'join', code: urlCode, role: 'glass' }));
-      // Announce to any phone already waiting in the room
+      window.__arvoRelayConnected = true;
+      // include both 'code' AND 'channel' in join so relay can match by either field
+      ws.send(JSON.stringify({ type: 'join', code: urlCode, channel: urlCode, role: 'glass' }));
+      // announce immediately and again at 1s / 3s in case the relay processes join async
       setTimeout(announceGlass, 200);
-      // Keep phone aware of glass every 5s
-      heartbeatTimer = setInterval(sendHeartbeat, 5000);
+      setTimeout(announceGlass, 1000);
+      setTimeout(announceGlass, 3000);
+      // heartbeat every 2s for first 30s, then every 5s
+      let fastCount = 0;
+      heartbeatTimer = setInterval(() => {
+        sendHeartbeat();
+        fastCount++;
+        if (fastCount === 15) {
+          clearInterval(heartbeatTimer);
+          heartbeatTimer = setInterval(sendHeartbeat, 5000);
+        }
+      }, 2000);
     };
 
     ws.onmessage = (e) => {
@@ -47,6 +64,7 @@ if (urlCode) {
         // When the phone joins the relay room, announce glass immediately
         if (msg.type === 'peer_joined') {
           setTimeout(announceGlass, 100);
+          setTimeout(announceGlass, 500);
         }
         const fakeEvent = { data: msg };
         listeners.get('message')?.forEach(fn => fn(fakeEvent));
@@ -56,6 +74,7 @@ if (urlCode) {
     ws.onerror = () => {};
 
     ws.onclose = () => {
+      window.__arvoRelayConnected = false;
       if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
       // Reconnect without reloading the page — a reload breaks the connection loop
       reconnectTimer = setTimeout(connectWs, 3000);
