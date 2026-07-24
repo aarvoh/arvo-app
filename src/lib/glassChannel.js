@@ -13,18 +13,41 @@ if (urlCode) {
   const listeners = new Map();
   let ws = null;
   let reconnectTimer = null;
+  let heartbeatTimer = null;
+
+  function announceGlass() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'glass_connected', code: urlCode, from: 'glass' }));
+    }
+  }
+
+  function sendHeartbeat() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'heartbeat_glass', code: urlCode, from: 'glass' }));
+    }
+  }
 
   function connectWs() {
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+
     ws = new WebSocket(RELAY_URL);
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'join', code: urlCode, role: 'glass' }));
+      // Announce to any phone already waiting in the room
+      setTimeout(announceGlass, 200);
+      // Keep phone aware of glass every 5s
+      heartbeatTimer = setInterval(sendHeartbeat, 5000);
     };
 
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
+        // When the phone joins the relay room, announce glass immediately
+        if (msg.type === 'peer_joined') {
+          setTimeout(announceGlass, 100);
+        }
         const fakeEvent = { data: msg };
         listeners.get('message')?.forEach(fn => fn(fakeEvent));
       } catch {}
@@ -33,6 +56,7 @@ if (urlCode) {
     ws.onerror = () => {};
 
     ws.onclose = () => {
+      if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
       // Reconnect without reloading the page — a reload breaks the connection loop
       reconnectTimer = setTimeout(connectWs, 3000);
     };
