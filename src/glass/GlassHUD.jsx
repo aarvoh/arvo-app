@@ -185,16 +185,18 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && 'ontouchend' in wi
 
 // volume is set per-utterance; module var keeps it in sync across all calls
 let _vol = 1;
+let _suppressUntil = 0;
 
 function speakText(text, onDone) {
   if (!window.speechSynthesis) { onDone?.(); return; }
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 0.95; utter.pitch = 1; utter.volume = _vol;
+  _suppressUntil = Date.now() + Math.max(3000, text.length * 70 + 2000);
   let fired = false;
   let safetyTimer;
   // finish() is idempotent — called by onend, onerror, or the safety timeout
-  const finish = () => { if (fired) return; fired = true; clearTimeout(safetyTimer); onDone?.(); };
+  const finish = () => { if (fired) return; fired = true; clearTimeout(safetyTimer); _suppressUntil = Date.now() + 1500; onDone?.(); };
   // Safety net: if browser never fires onend (common on mobile Chrome), still unblock
   safetyTimer = setTimeout(finish, Math.max(3000, text.length * 70 + 1500));
   utter.onend  = finish;
@@ -580,6 +582,12 @@ export default function GlassHUD() {
           setNavSpeed(0);
           speakText('Navigation ended.');
           break;
+        case 'nav_update':
+          if (msg.instruction || msg.distance) {
+            setNavData(d => ({ ...(d || {}), instruction: msg.instruction || d?.instruction || '', distance: msg.distance || d?.distance || '' }));
+            setShowNav(true);
+          }
+          break;
         case 'location_update':
           if (msg.speed != null) setNavSpeed(msg.speed);
           break;
@@ -795,6 +803,7 @@ export default function GlassHUD() {
     r.onstart = () => { wakeActiveRef.current = true; setWakeListening(true); };
 
     r.onresult = (e) => {
+      if (Date.now() < _suppressUntil) return;
       const texts = [];
       for (let i = 0; i < e.results.length; i++) {
         for (let j = 0; j < e.results[i].length; j++) {
@@ -1494,7 +1503,7 @@ export default function GlassHUD() {
       {showCall && callData && (() => {
         const brand = getAppBrand(callData.app);
         return (
-          <div className="call-overlay">
+          <div className="call-overlay" onClick={(e) => e.stopPropagation()}>
             {!callConnected ? (
               <>
                 <div className="call-ring" style={{ background: brand.bg, borderColor: brand.border }}>
@@ -1691,7 +1700,7 @@ export default function GlassHUD() {
                             if (name === 'Fitness') { setShowFitness(true); return; }
                             if (name === 'Spotify') { triggerMusic(); return; }
                             if (name === 'Maps')    { triggerNav(); return; }
-                            if (name === 'Calls')   { endSession(); startVoiceQuery(); return; }
+                            if (name === 'Calls')   { outSeqRef.current += 1; glassChannel?.postMessage({ type: 'open_calls', seq_id: outSeqRef.current }); speakText('Opening calls on your phone', () => {}); return; }
                             if (name === 'Camera')  {
                               if (!camReady) {
                                 setAnswer('Camera not available — allow camera access in your browser settings, then reload.');
