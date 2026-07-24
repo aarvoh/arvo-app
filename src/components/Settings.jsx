@@ -136,7 +136,7 @@ export default function Settings({ spotifyConnected, onSpotifyChange }) {
             <div className="glass-steps">
               <div className="glass-step">
                 <div className="glass-step-num">1</div>
-                <div className="glass-step-text">Open the Glass HUD in a new tab on the same device</div>
+                <div className="glass-step-text">Open <strong>arvo-app.vercel.app/glass</strong> on your glass device or second screen</div>
               </div>
               <div className="glass-step">
                 <div className="glass-step-num">2</div>
