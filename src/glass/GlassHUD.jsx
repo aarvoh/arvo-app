@@ -1685,14 +1685,15 @@ export default function GlassHUD() {
               </svg>
               {brainConn === 'connected' ? 'brain' : brainConn === 'reconnecting' ? '…' : 'off'}
             </div>
-            {/* relay WS status — shows code when not connected so user can verify match */}
+            {/* relay WS status — small dot only; hover/long-press title has the code for debugging */}
             <div
-              className={`hud-stat${relayOk ? ' ok' : ' dim'}`}
-              style={{ fontFamily: 'monospace', letterSpacing: 1, cursor: 'default' }}
-              title={`Relay WS · code: ${window.__arvoRelayCode || '—'}`}
-            >
-              {relayOk ? '● relay' : `○ ${window.__arvoRelayCode || '—'}`}
-            </div>
+              title={`Relay WS: ${relayOk ? 'connected' : 'disconnected'} · code: ${window.__arvoRelayCode || '—'}`}
+              style={{
+                width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                background: relayOk ? 'var(--g-green)' : 'rgba(255,255,255,0.14)',
+                boxShadow: relayOk ? '0 0 5px var(--g-green-glow)' : 'none',
+              }}
+            />
             <button className="hud-fs-btn" onClick={toggleFullscreen}>
               {isFullscreen
                 ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
